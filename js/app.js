@@ -213,9 +213,9 @@ const GuitarApp = {
         
         const isMobile = window.innerWidth <= 768;
         if (isMobile) {
-            this.camera.position.set(-1.7, 9.5, 5.0);
+            this.camera.position.set(-0.5, 10.5, 6.0);
         } else {
-            this.camera.position.set(-1.7, 7.2, 2.7);
+            this.camera.position.set(-0.5, 8.0, 4.0);
         }
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -303,13 +303,30 @@ const GuitarApp = {
             this.neckGroup.add(fret);
 
             if ([3, 5, 7, 9, 12, 15].includes(i)) {
-                const dot = new THREE.Mesh(
-                    new THREE.CircleGeometry(0.1, 16),
-                    new THREE.MeshStandardMaterial({ color: 0xffffff })
-                );
-                dot.rotation.x = -Math.PI / 2;
-                dot.position.set(fretX - 0.3, 0.16, 0);
-                this.neckGroup.add(dot);
+                // Calculate geometric center of the fret
+                const prevX = this.fretPositions[i-1];
+                const centerX = (fretX + prevX) / 2;
+
+                if (i === 12) {
+                    // Double dots
+                    [-0.55, 0.55].forEach(zOffset => {
+                        const dot = new THREE.Mesh(
+                            new THREE.CircleGeometry(0.1, 24),
+                            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 })
+                        );
+                        dot.rotation.x = -Math.PI / 2;
+                        dot.position.set(centerX, 0.152, zOffset);
+                        this.neckGroup.add(dot);
+                    });
+                } else {
+                    const dot = new THREE.Mesh(
+                        new THREE.CircleGeometry(0.1, 24),
+                        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 })
+                    );
+                    dot.rotation.x = -Math.PI / 2;
+                    dot.position.set(centerX, 0.152, 0);
+                    this.neckGroup.add(dot);
+                }
             }
         }
 
