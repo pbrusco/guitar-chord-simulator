@@ -1100,28 +1100,39 @@
                 this.targetPos = new THREE.Vector3();
                 this.isBarre = false;
 
-                // More realistic material
-                const mat = new THREE.MeshStandardMaterial({ 
+                // Materials
+                const skinMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xf5c9a6, 
+                    roughness: 0.5,
+                    metalness: 0.1
+                });
+                
+                // Tip/Nail Color
+                const tipMat = new THREE.MeshStandardMaterial({ 
                     color: color, 
                     roughness: 0.5,
                     metalness: 0.1
                 });
+
                 const jointMat = new THREE.MeshStandardMaterial({
                     color: 0xbaa085, // skin tone for joints to contrast
                     roughness: 0.6
                 });
 
                 // Segments
-                for(let l of lengths) {
+                lengths.forEach((l) => {
                      // Tapered Cylinder for realism
-                    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 8), mat);
+                    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 8), skinMat);
                     seg.castShadow = true;
                     scene.add(seg);
                     this.segments.push(seg);
-                }
+                });
+
                 // Joints
                 for(let i=0; i<4; i++) {
-                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), jointMat);
+                    // Tip gets the color
+                    const m = (i === 3) ? tipMat : jointMat;
+                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), m);
                     joint.castShadow = true;
                     scene.add(joint);
                     this.joints.push(joint);
