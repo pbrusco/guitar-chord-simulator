@@ -298,16 +298,9 @@
         }
         .string-row:hover { border-color: var(--panel-border); }
         
-        .import-export-bar {
-            background: rgba(255,255,255,0.03);
-            padding: 16px;
-            border-radius: var(--radius-sm);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        .reset-bar {
             margin-bottom: 24px;
         }
-        .reset-btn { grid-column: span 2; }
     </style>
 </head>
 <body>
@@ -326,7 +319,7 @@
             <div id="chord-buttons-container"></div>
             
             <button id="manage-btn" class="btn btn-secondary btn-full" onclick="openModal()">
-                <span>⚙️</span> Manage Library
+                <span>➕</span> Add Custom
             </button>
 
             <!-- Active Chord Info -->
@@ -378,17 +371,13 @@
             </div>
             
             <div class="modal-body">
-                <div class="import-export-bar">
-                    <button class="btn btn-secondary" onclick="libraryManager.exportLibrary()">
-                        <span>💾</span> Export
+                <div class="reset-bar">
+                    <button class="btn btn-secondary btn-full" onclick="libraryManager.resetLibrary()">
+                         Reset Library to Defaults
                     </button>
-                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
-                        <span>📂</span> Import
-                    </button>
-                    <button class="btn btn-secondary" onclick="libraryManager.resetLibrary()" style="margin-left: auto;">
-                        Reset
-                    </button>
-                    <input type="file" id="importFile" style="display:none" onchange="libraryManager.importLibrary(this)">
+                    <p style="text-align: center; font-size: 11px; opacity: 0.5; margin-top: 8px;">
+                        (Reloads from js/chords/ folders)
+                    </p>
                 </div>
 
                 <div class="divider"></div>
@@ -413,7 +402,6 @@
     </div>
 
     <!-- THREE.JS IMPORT MAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <script type="importmap">
     {
         "imports": {
@@ -445,12 +433,18 @@
                 ...QUADRIAD_CHORDS
             },
             offsets: {
-                // Pre-populate known offsets if needed, or leave generic
+                // Generic Open Chords
                 'C Open': { x: 0, y: 0 },
                 'A Open': { x: -1, y: 0.4 },
                 'G Open': { x: -0.3, y: 1 },
                 'E Open': { x: -0.1, y: 0.8 },
                 'D Open': { x: -1, y: 0 },
+                'Am Open': { x: 0, y: 0 },
+                'Em Open': { x: 0, y: 0 },
+                'Dm Open': { x: 0, y: 0 },
+                
+                // Generic Barres (Defaults usually work via auto-barre logic, but we can tune)
+                // Most barre chords use the auto-calculation, but we can force start points
                 'F (Barre 1fr)': { x: -0.2, y: -0.2 },
                 'Bm (Barre 2fr)': { x: -0.2, y: -0.2 }
             }
@@ -519,43 +513,6 @@
                     this.save();
                     window.location.reload(); 
                 }
-            },
-
-            exportLibrary() {
-                const yamlStr = jsyaml.dump(this.data, { indent: 2, lineWidth: -1 });
-                const blob = new Blob([yamlStr], {type: "text/yaml;charset=utf-8"});
-                const url = URL.createObjectURL(blob);
-                const anchor = document.createElement('a');
-                anchor.href = url;
-                anchor.download = "guitar_chords.yaml";
-                anchor.click();
-            },
-
-            importLibrary(input) {
-                const file = input.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const imported = jsyaml.load(e.target.result);
-                        if (imported && imported.chords && imported.offsets) {
-                            
-                            // Validate Structure
-                            for(let k in imported.chords) {
-                                // Fix legacy imports if any
-                                if(Array.isArray(imported.chords[k])) {
-                                    imported.chords[k] = { positions: imported.chords[k], tags: [] };
-                                }
-                            }
-
-                            this.data = imported;
-                            this.save();
-                            closeModal();
-                            GuitarApp.setChord(Object.keys(this.data.chords)[0]);
-                        } else { alert("Invalid file structure"); }
-                    } catch(err) { alert("Invalid YAML file: " + err); }
-                };
-                reader.readAsText(file);
             }
         };
 
@@ -1375,6 +1332,9 @@
             try {
                 await LibraryManager.init();
                 GuitarApp.init();
+
+                // Build UI
+                uiManager.renderChordButtons();
 
                 // Initial Load
                 const keys = Object.keys(LibraryManager.data.chords);
