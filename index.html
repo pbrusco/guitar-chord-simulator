@@ -301,6 +301,19 @@
         .reset-bar {
             margin-bottom: 24px;
         }
+        
+        /* Language Toggle */
+        .btn-xs {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        .btn-xs:hover { color: var(--accent-color); }
+
     </style>
 </head>
 <body>
@@ -308,7 +321,11 @@
     <!-- CONTROL PANEL -->
     <div id="controls" class="glass-panel">
         <div class="panel-header">
-            <h3>🎸 Hand Simulator</h3>
+            <h3 data-i18n="title">🎸 Hand Simulator</h3>
+            <div style="display: flex; gap: 4px; margin-right: 8px;">
+                <button class="btn-xs" onclick="TranslationManager.setLang('en')" id="lang-en" style="opacity: 1;">EN</button>
+                <button class="btn-xs" onclick="TranslationManager.setLang('es')" id="lang-es" style="opacity: 0.5;">ES</button>
+            </div>
             <button id="toggle-btn" onclick="togglePanel()" class="icon-btn" title="Toggle Panel">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
@@ -319,12 +336,12 @@
             <div id="chord-buttons-container"></div>
             
             <button id="manage-btn" class="btn btn-secondary btn-full" onclick="openModal()">
-                <span>➕</span> Add Custom
+                <span data-i18n="add_custom">➕ Add Custom</span>
             </button>
 
             <!-- Active Chord Info -->
             <div id="chord-diagram">
-                <h4>📍 Finger Positions</h4>
+                <h4 data-i18n="finger_pos">📍 Finger Positions</h4>
                 <div id="finger-list"></div>
                 <div class="string-diagram">
                     <div id="fretboard-text"></div>
@@ -333,7 +350,7 @@
 
             <!-- Hand Transformation Controls -->
             <div id="debug-controls">
-                <h4 style="margin: 0 0 16px 0; color: var(--text-main); font-size: 13px;">🛠 Hand Adjustment</h4>
+                <h4 style="margin: 0 0 16px 0; color: var(--text-main); font-size: 13px;" data-i18n="hand_adj">🛠 Hand Adjustment</h4>
                 
                 <div class="control-row">
                     <label>X</label>
@@ -347,7 +364,7 @@
                 </div>
                 
                 <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px;">
-                    <button onclick="uiManager.saveCurrentOffset()" class="btn btn-primary">Save Offset</button>
+                    <button onclick="uiManager.saveCurrentOffset()" class="btn btn-primary" data-i18n="save_offset">Save Offset</button>
                     <button onclick="uiManager.resetCurrentOffset()" class="btn btn-secondary icon-btn" title="Reset">↺</button>
                 </div>
             </div>
@@ -421,6 +438,125 @@
         import { BARRE_CHORDS } from './js/chords/barre.js';
         import { TRIAD_CHORDS } from './js/chords/triads.js';
         import { QUADRIAD_CHORDS } from './js/chords/quadriads.js';
+
+        // ==========================================
+        // TRANSLATION MANAGER
+        // ==========================================
+        const TranslationManager = {
+            lang: 'en',
+            dict: {
+                en: {
+                    title: "🎸 Hand Simulator",
+                    add_custom: "➕ Add Custom",
+                    finger_pos: "📍 Finger Positions",
+                    hand_adj: "🛠 Hand Adjustment",
+                    save_offset: "Save Offset",
+                    reset_lib: "Reset Library to Defaults",
+                    reloads: "(Reloads from js/chords/ folders)",
+                    chord_editor: "Chord Editor",
+                    chord_name: "Chord Name",
+                    tags_lbl: "Tags",
+                    save_changes: "Save Changes",
+                    delete: "Delete",
+                    manage_lib: "Manage Library",
+                    // Dynamic
+                    saved: "Saved!",
+                    del_confirm: "Delete ",
+                    reset_confirm: "Reset entire library to defaults?",
+                    
+                    // Tags
+                    "Barre": "Barre", "Open": "Open", "Major": "Major", "Minor": "Minor", 
+                    "E-Shape": "E-Shape", "A-Shape": "A-Shape", "Em-Shape": "Em-Shape", "Am-Shape": "Am-Shape", "Triad": "Triad"
+                },
+                es: {
+                    title: "🎸 Simulador de Mano",
+                    add_custom: "➕ Añadir Personalizado",
+                    finger_pos: "📍 Posición de Dedos",
+                    hand_adj: "🛠 Ajuste de Mano",
+                    save_offset: "Guardar Pos.",
+                    reset_lib: "Restaurar Biblioteca",
+                    reloads: "(Recarga desde carpetas js/chords/)",
+                    chord_editor: "Editor de Acordes",
+                    chord_name: "Nombre del Acorde",
+                    tags_lbl: "Etiquetas",
+                    save_changes: "Guardar Cambios",
+                    delete: "Eliminar",
+                    manage_lib: "Gestionar Librería",
+                    // Dynamic
+                    saved: "Guardado!",
+                    del_confirm: "Eliminar ",
+                    reset_confirm: "¿Restaurar biblioteca completa a valores por defecto?",
+                    
+                    // Tags
+                    "Barre": "Cejilla", "Open": "Abierto", "Major": "Mayor", "Minor": "Menor", 
+                    "E-Shape": "Forma-Mi", "A-Shape": "Forma-La", "Em-Shape": "Forma-Mim", "Am-Shape": "Forma-Lam", "Triad": "Tríada"
+                }
+            },
+
+            setLang(lang) {
+                this.lang = lang;
+                
+                // Update Buttons
+                document.getElementById('lang-en').style.opacity = lang === 'en' ? 1 : 0.5;
+                document.getElementById('lang-es').style.opacity = lang === 'es' ? 1 : 0.5;
+
+                // Update Static Text
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    if(this.dict[lang][key]) {
+                        // Check if it has an icon (hacky but works for Add Custom)
+                        if(el.children.length === 0) el.textContent = this.dict[lang][key];
+                        else {
+                            // Preserve icon if possible, but for now specific case
+                             if(key === 'add_custom') el.textContent = this.dict[lang][key];
+                        }
+                    }
+                });
+
+                // Re-render Components
+                uiManager.renderChordButtons();
+                if(GuitarApp.currentChordName) uiManager.renderDiagram(GuitarApp.currentChordName);
+            },
+
+            t(key) {
+                return this.dict[this.lang][key] || key;
+            },
+
+            // Convert Chord Name to Target Lang
+            translateChordName(name) {
+                if(this.lang === 'en') return name;
+
+                // Simple parser for Latin Notation
+                let translated = name;
+                
+                // Note Replacements (careful with order, B before A? No, specific chars)
+                // Use regex word boundaries to avoid replacing "Barre" -> "Si-arre"
+                
+                const notes = { 'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si' };
+                
+                // 1. Replace Roots (Start of string or space)
+                // Regex to match C, D, E... only if they are the Root Note
+                // Usually "Am", "C", "F#".
+                // Let's iterate keys.
+                for(let note in notes) {
+                    // Match note at start, optionally followed by #/b/m
+                    // e.g. "Am" -> replace A with La -> "Lam"
+                    const regex = new RegExp(`^${note}`, 'g'); 
+                    if(translated.match(regex)) {
+                         translated = translated.replace(regex, notes[note]);
+                         break; // Only one root per chord name usually
+                    }
+                }
+
+                // 2. Replace Terms in parens
+                translated = translated.replace('Open', 'Abierto');
+                translated = translated.replace('Barre', 'Cejilla');
+                translated = translated.replace(/(\d+)fr/, '$1tr'); // 3fr -> 3tr
+
+                return translated;
+            }
+        };
+        window.TranslationManager = TranslationManager;
 
         // ==========================================
         // DATA & LIBRARY MANAGER
@@ -1099,7 +1235,7 @@
                     b.classList.remove('active');
                     if(b.textContent === name) b.classList.add('active');
                 });
-                document.getElementById('current-chord-display').textContent = name;
+                document.getElementById('current-chord-display').textContent = TranslationManager.translateChordName(name);
 
                 // Set Sliders
                 ['x', 'y'].forEach(axis => {
@@ -1148,7 +1284,10 @@
                     const btn = document.createElement('button');
                     btn.className = 'chord-btn';
                     if (GuitarApp.currentChordName === key) btn.classList.add('active');
-                    btn.textContent = key;
+                    
+                    // TRANSLATION APPLIED HERE
+                    btn.textContent = TranslationManager.translateChordName(key);
+                    
                     btn.onclick = () => GuitarApp.setChord(key);
                     btn.oncontextmenu = (e) => {
                         e.preventDefault();
@@ -1169,12 +1308,14 @@
                 let html = '';
                 if(tags.length) {
                     html += `<div style="margin-bottom:10px; font-size: 0.8em; color: var(--accent-color);">
-                        ${tags.map(t => `<span style="border:1px solid #555; padding:2px 6px; border-radius:4px; margin-right:4px;">${t}</span>`).join('')}
+                        ${tags.map(t => {
+                            // TRANSLATE TAG
+                            const label = TranslationManager.t(t);
+                            return `<span style="border:1px solid #555; padding:2px 6px; border-radius:4px; margin-right:4px;">${label}</span>`;
+                        }).join('')}
                     </div>`;
                 }
-                
-                // (Finger list removed as requested)
-                
+
                 document.getElementById('finger-list').innerHTML = html;
 
                 // Ascii board
@@ -1260,7 +1401,7 @@
             const tagInput = document.createElement('div');
             tagInput.className = 'form-group';
             tagInput.innerHTML = `
-                <label>Tags</label>
+                <label>${TranslationManager.t('tags_lbl')}</label>
                 <input type="text" id="edit-tags" value="${tags.join(', ')}" placeholder="e.g. Major, Open, Barre">
             `;
             container.appendChild(tagInput);
@@ -1294,10 +1435,10 @@
                     <input type="number" min="0" max="24" id="fret-${s}" value="${fret}" class="fret-input">
                     <select id="finger-${s}" class="finger-select">
                         <option value="-1" ${finger===-1?'selected':''}>-</option>
-                        <option value="0" ${finger===0?'selected':''}>Index</option>
-                        <option value="1" ${finger===1?'selected':''}>Middle</option>
-                        <option value="2" ${finger===2?'selected':''}>Ring</option>
-                        <option value="3" ${finger===3?'selected':''}>Pinky</option>
+                        <option value="0" ${finger===0?'selected':''}>${TranslationManager.lang === 'es' ? 'Índice' : 'Index'}</option>
+                        <option value="1" ${finger===1?'selected':''}>${TranslationManager.lang === 'es' ? 'Medio' : 'Middle'}</option>
+                        <option value="2" ${finger===2?'selected':''}>${TranslationManager.lang === 'es' ? 'Anular' : 'Ring'}</option>
+                        <option value="3" ${finger===3?'selected':''}>${TranslationManager.lang === 'es' ? 'Meñique' : 'Pinky'}</option>
                     </select>
                 `;
                 container.appendChild(div);
@@ -1306,6 +1447,7 @@
             const delBtn = document.getElementById('delete-chord-btn');
             if(name) {
                  delBtn.style.display = 'block';
+                 delBtn.textContent = TranslationManager.t('delete');
                  delBtn.onclick = () => window.deleteChord(name);
             } else {
                 delBtn.style.display = 'none';
