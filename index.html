@@ -624,6 +624,13 @@
                 uiManager.updateUIForChord(name, offset);
 
                 // 2. Setup Targets
+                this.updatePositions();
+            },
+
+            updatePositions() {
+                const name = this.currentChordName;
+                if(!name || !LibraryManager.data.chords[name]) return;
+
                 this.fingerTargets = [null, null, null, null];
                 this.markerGroup.clear();
                 
@@ -849,7 +856,7 @@
                 value = parseFloat(value);
                 GuitarApp.handOffset[axis] = value;
                 document.getElementById(`offset-${axis}`).textContent = value.toFixed(1);
-                if(GuitarApp.currentChordName) GuitarApp.setChord(GuitarApp.currentChordName);
+                if(GuitarApp.currentChordName) GuitarApp.updatePositions();
             },
 
             saveCurrentOffset() {
