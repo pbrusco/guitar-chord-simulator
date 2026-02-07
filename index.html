@@ -118,11 +118,17 @@
             <button id="toggle-btn" onclick="togglePanel()">−</button>
         </div>
         <div id="panel-content">
-        <button class="chord-btn active" onclick="setChord('C')">C Major</button>
-        <button class="chord-btn" onclick="setChord('D')">D Major</button>
-        <button class="chord-btn" onclick="setChord('G')">G Major</button>
-        <button class="chord-btn" onclick="setChord('Am')">A Minor</button>
-        <button class="chord-btn" onclick="setChord('E')">E Major</button>
+        <div style="display: flex; flex-wrap: wrap;">
+            <button class="chord-btn active" onclick="setChord('C')">C Major</button>
+            <button class="chord-btn" onclick="setChord('D')">D Major</button>
+            <button class="chord-btn" onclick="setChord('G')">G Major</button>
+            <button class="chord-btn" onclick="setChord('A')">A Major</button>
+            <button class="chord-btn" onclick="setChord('E')">E Major</button>
+            <button class="chord-btn" onclick="setChord('F')">F Major</button>
+            <button class="chord-btn" onclick="setChord('Am')">A Minor</button>
+            <button class="chord-btn" onclick="setChord('Em')">E Minor</button>
+            <button class="chord-btn" onclick="setChord('Dm')">D Minor</button>
+        </div>
         
         <div id="chord-diagram">
             <h4>📍 Finger Positions</h4>
@@ -151,6 +157,11 @@
                 <label style="width: 20px; color: #aaa;">Z:</label>
                 <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('z', this.value)" style="flex-grow: 1;">
                 <span id="offset-z" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button onclick="saveCurrentOffset()" style="background: #ff9800; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer; flex-grow: 1; font-weight: bold;">Save Position</button>
+                <button onclick="resetCurrentOffset()" style="background: #444; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer;">↺</button>
             </div>
         </div>
         </div>
@@ -430,31 +441,115 @@
         // Format: array of { string: 1-6, fret: 0-12, finger: 0-3 }
         const chords = {
             'C': [
-                { string: 2, fret: 1, finger: 0 },  // B string, fret 1, index
-                { string: 4, fret: 2, finger: 1 },  // D string, fret 2, middle
-                { string: 5, fret: 3, finger: 2 },  // A string, fret 3, ring
+                { string: 2, fret: 1, finger: 0 },
+                { string: 4, fret: 2, finger: 1 },
+                { string: 5, fret: 3, finger: 2 },
             ],
             'D': [
-                { string: 3, fret: 2, finger: 0 },  // G string, fret 2, index
-                { string: 1, fret: 2, finger: 1 },  // e string, fret 2, middle
-                { string: 2, fret: 3, finger: 2 },  // B string, fret 3, ring
+                { string: 3, fret: 2, finger: 0 },
+                { string: 1, fret: 2, finger: 1 },
+                { string: 2, fret: 3, finger: 2 },
             ],
             'G': [
-                { string: 5, fret: 2, finger: 0 },  // A string, fret 2, index
-                { string: 6, fret: 3, finger: 1 },  // Low E, fret 3, middle
-                { string: 1, fret: 3, finger: 2 },  // High e, fret 3, ring
-                { string: 2, fret: 3, finger: 3 },  // B string, fret 3, pinky
+                { string: 5, fret: 2, finger: 0 },
+                { string: 6, fret: 3, finger: 1 },
+                { string: 1, fret: 3, finger: 2 },
+                { string: 2, fret: 3, finger: 3 },
             ],
-            'Am': [
-                { string: 2, fret: 1, finger: 0 },  // B string, fret 1, index
-                { string: 4, fret: 2, finger: 1 },  // D string, fret 2, middle
-                { string: 3, fret: 2, finger: 2 },  // G string, fret 2, ring
+            'A': [
+                { string: 4, fret: 2, finger: 0 },
+                { string: 3, fret: 2, finger: 1 },
+                { string: 2, fret: 2, finger: 2 },
             ],
             'E': [
-                { string: 3, fret: 1, finger: 0 },  // G string, fret 1, index
-                { string: 5, fret: 2, finger: 1 },  // A string, fret 2, middle
-                { string: 4, fret: 2, finger: 2 },  // D string, fret 2, ring
+                { string: 3, fret: 1, finger: 0 },
+                { string: 5, fret: 2, finger: 1 },
+                { string: 4, fret: 2, finger: 2 },
+            ],
+            'F': [
+                { string: 2, fret: 1, finger: 0 },
+                { string: 3, fret: 2, finger: 1 },
+                { string: 5, fret: 3, finger: 2 },
+                { string: 4, fret: 3, finger: 3 }, 
+            ],
+            'Am': [
+                { string: 2, fret: 1, finger: 0 },
+                { string: 4, fret: 2, finger: 1 },
+                { string: 3, fret: 2, finger: 2 },
+            ],
+            'Em': [
+                { string: 5, fret: 2, finger: 1 },
+                { string: 4, fret: 2, finger: 2 },
+            ],
+            'Dm': [
+                { string: 1, fret: 1, finger: 0 },
+                { string: 3, fret: 2, finger: 1 },
+                { string: 2, fret: 3, finger: 2 },
             ]
+        };
+
+        // Initial hand offsets for each chord
+        const defaultChordOffsets = {
+            'C': { x: 0, y: 0, z: 0 },
+            'D': { x: -1, y: 0, z: 0 },
+            'G': { x: -0.3, y: 1, z: 0.2 },
+            'A': { x: -1, y: 0.4, z: 0 },
+            'E': { x: -0.1, y: 0.8, z: 0 },
+            'F': { x: 0, y: 0, z: 0 },
+            'Am': { x: 0, y: 0, z: 0 },
+            'Em': { x: 0, y: 0, z: 0 },
+            'Dm': { x: 0, y: 0, z: 0 }
+        };
+        
+        // Load saved offsets from LocalStorage
+        const savedOffsets = JSON.parse(localStorage.getItem('guitarHandOffsets')) || {};
+        const chordOffsets = { ...defaultChordOffsets, ...savedOffsets };
+
+        // Save current offset to LocalStorage
+        window.saveCurrentOffset = function() {
+            if (!currentChord) return;
+            
+            // Update the master list
+            chordOffsets[currentChord] = { x: handOffset.x, y: handOffset.y, z: handOffset.z };
+            
+            // Persist to storage
+            localStorage.setItem('guitarHandOffsets', JSON.stringify(chordOffsets));
+            
+            // Visual feedback
+            const btn = document.querySelector('button[onclick="saveCurrentOffset()"]');
+            const originalText = btn.textContent;
+            btn.textContent = "Saved!";
+            btn.style.background = "#4CAF50";
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = "#ff9800";
+            }, 1000);
+        };
+
+        // Reset current offset to defaults
+        window.resetCurrentOffset = function() {
+            if (!currentChord || !defaultChordOffsets[currentChord]) return;
+            
+            // Revert checks
+            const def = defaultChordOffsets[currentChord];
+            handOffset.set(def.x, def.y, def.z);
+            chordOffsets[currentChord] = { ...def };
+            
+            // Update UI inputs
+            ['x', 'y', 'z'].forEach(axis => {
+                const selector = `input[oninput*="'${axis}'"]`;
+                const input = document.querySelector(selector);
+                if (input) input.value = handOffset[axis];
+                
+                const display = document.getElementById(`offset-${axis}`);
+                if (display) display.textContent = handOffset[axis].toFixed(1);
+            });
+            
+            // Save the revert
+            localStorage.setItem('guitarHandOffsets', JSON.stringify(chordOffsets));
+            
+            // Update view
+            setChord(currentChord);
         };
 
         // Get note position on fretboard
@@ -473,7 +568,7 @@
         }
 
         // Current chord state
-        let currentChord = 'C';
+        let currentChord = null;
         let fingerTargets = [null, null, null, null];
         let palmPosition = new THREE.Vector3(-4, -1, 1.5);
         
@@ -488,6 +583,22 @@
         };
 
         function setChord(chordName) {
+            // Apply preset offsets if switching chords
+            if (chordName !== currentChord) {
+                const offsets = chordOffsets[chordName] || { x: 0, y: 0, z: 0 };
+                handOffset.copy(offsets);
+                
+                // Update UI sliders and text
+                ['x', 'y', 'z'].forEach(axis => {
+                    const selector = `input[oninput*="'${axis}'"]`;
+                    const input = document.querySelector(selector);
+                    if (input) input.value = handOffset[axis];
+                    
+                    const display = document.getElementById(`offset-${axis}`);
+                    if (display) display.textContent = handOffset[axis].toFixed(1);
+                });
+            }
+
             currentChord = chordName;
             document.getElementById('current-chord').textContent = chordName;
             
@@ -579,12 +690,58 @@
             }
 
             // Set unused fingers to hover curled
+            // prevent crossing by interpolating between neighbors if possible
             for (let i = 0; i < 4; i++) {
                 if (!fingerTargets[i]) {
+                    // Start with default position based on hand center
+                    let targetX = avgX_off + fingerConfigs[i].offset.x;
+                    let targetZ = avgZ;
+
+                    // Try to be smarter: stay between neighbors in the schematic order (Index -> Pinky)
+                    // Find nearest active neighbor to left (< i) and right (> i)
+                    let left = -1;
+                    let right = -1;
+                    
+                    // Look left (lower index)
+                    for(let j=i-1; j>=0; j--) {
+                        if(fingerTargets[j]) { left = j; break; }
+                    }
+                    // Look right (higher index)
+                    for(let j=i+1; j<4; j++) {
+                        if(fingerTargets[j]) { right = j; break; }
+                    }
+                    
+                    if (left !== -1 && right !== -1) {
+                         // We are sandwiched. Place proportionally between them.
+                         const range = fingerConfigs[right].offset.x - fingerConfigs[left].offset.x;
+                         const myRel = (fingerConfigs[i].offset.x - fingerConfigs[left].offset.x) / range;
+                         
+                         const worldRange = fingerTargets[right].x - fingerTargets[left].x;
+                         targetX = fingerTargets[left].x + worldRange * myRel;
+                         
+                         // Also interpolate Z to keep the "line" of fingers smooth
+                         const worldRangeZ = fingerTargets[right].z - fingerTargets[left].z;
+                         targetZ = fingerTargets[left].z + worldRangeZ * myRel;
+
+                    } else if (left !== -1) {
+                        // Only left neighbor. Keep minimal distance to right of it.
+                        // maintain at least the natural spacing
+                        const spacing = fingerConfigs[i].offset.x - fingerConfigs[left].offset.x;
+                        targetX = Math.max(targetX, fingerTargets[left].x + spacing * 0.8);
+                        targetZ = fingerTargets[left].z; // Roughly same Z (string) depth
+                        
+                    } else if (right !== -1) {
+                        // Only right neighbor. Keep minimal distance to left of it.
+                         const spacing = fingerConfigs[right].offset.x - fingerConfigs[i].offset.x;
+                         targetX = Math.min(targetX, fingerTargets[right].x - spacing * 0.8);
+                         targetZ = fingerTargets[right].z;
+                    }
+                    
+                    // Lift unused fingers higher
                     fingerTargets[i] = new THREE.Vector3(
-                        avgX_off + fingerConfigs[i].offset.x,
+                        targetX,
                         0.8,  // Above fretboard
-                        avgZ
+                        targetZ
                     );
                 }
             }
@@ -681,8 +838,12 @@
             if (e.key === '1') setChord('C');
             if (e.key === '2') setChord('D');
             if (e.key === '3') setChord('G');
-            if (e.key === '4') setChord('Am');
+            if (e.key === '4') setChord('A');
             if (e.key === '5') setChord('E');
+            if (e.key === '6') setChord('F');
+            if (e.key === '7') setChord('Am');
+            if (e.key === '8') setChord('Em');
+            if (e.key === '9') setChord('Dm');
         });
     </script>
 </body>
