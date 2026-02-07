@@ -398,13 +398,15 @@
 
         // Create fingers with offsets from palm and segment lengths
         // Using skin tones - fingers need to be long enough to reach from knuckle to string
+        // REORDERED OFFSETS: Index starts at lowest X (left) to Pinky at highest X (right)
+        // to prevent fingers from crossing over each other when reaching for frets.
         const fingers = [];
         const skinTones = [0xf5c9a6, 0xf2c4a0, 0xf0c19a, 0xeebb94]; // Slight variations
         const fingerConfigs = [
-            { offset: new THREE.Vector3(0.4, 0, 0), lengths: [0.5, 0.4, 0.3] },   // Index - longer
-            { offset: new THREE.Vector3(0.13, 0, 0), lengths: [0.58, 0.45, 0.32] },  // Middle (longest)
-            { offset: new THREE.Vector3(-0.13, 0, 0), lengths: [0.54, 0.42, 0.3] }, // Ring
-            { offset: new THREE.Vector3(-0.4, 0, 0), lengths: [0.44, 0.35, 0.26] },  // Pinky (shortest)
+            { offset: new THREE.Vector3(-0.35, 0, 0), lengths: [0.5, 0.4, 0.3] },   // Index - Leftmost
+            { offset: new THREE.Vector3(-0.10, 0, 0), lengths: [0.58, 0.45, 0.32] },  // Middle
+            { offset: new THREE.Vector3(0.15, 0, 0), lengths: [0.54, 0.42, 0.3] },   // Ring
+            { offset: new THREE.Vector3(0.40, 0, 0), lengths: [0.44, 0.35, 0.26] },   // Pinky - Rightmost
         ];
 
         for (let i = 0; i < 4; i++) {
@@ -563,12 +565,16 @@
             // Calculate knuckle positions (behind neck, below fretboard)
             for (let i = 0; i < 4; i++) {
                 const xOffset = fingerConfigs[i].offset.x;
-                // Stagger knuckles - middle finger knuckle slightly higher
-                const yOffset = [0, 0.1, 0.05, -0.05][i];
+                // Stagger knuckles - middle finger knuckle slightly higher (natural hand arch)
+                const yOffset = [0, 0.08, 0.06, -0.04][i]; 
+                
+                // Add tiny Z stagger to prevent Z-fighting if fingers are close
+                const zStagger = i * 0.05; 
+                
                 knucklePositions[i].set(
                     avgX_off + xOffset,
                     knuckleY + yOffset,
-                    knuckleZ
+                    knuckleZ + zStagger
                 );
             }
 
