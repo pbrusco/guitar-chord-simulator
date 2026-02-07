@@ -5,7 +5,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OPEN_CHORDS } from './chords/open.js';
 import { BARRE_CHORDS } from './chords/barre.js';
 import { TRIAD_CHORDS } from './chords/triads.js';
-import { QUADRIAD_CHORDS } from './chords/quadriads.js';
 
 // ==========================================
 // TRANSLATION MANAGER
@@ -136,7 +135,6 @@ const DEFAULTS = {
         ...OPEN_CHORDS,
         ...BARRE_CHORDS,
         ...TRIAD_CHORDS,
-        ...QUADRIAD_CHORDS
     },
     offsets: {
         // Generic Open Chords
@@ -147,11 +145,7 @@ const DEFAULTS = {
         'D Open': { x: -1, y: 0 },
         'Am Open': { x: 0, y: 0 },
         'Em Open': { x: 0, y: 0 },
-        'Dm Open': { x: 0, y: 0 },
-        
-        // Generic Barres
-        'F (Barre 1fr)': { x: -0.2, y: -0.2 },
-        'Bm (Barre 2fr)': { x: -0.2, y: -0.2 }
+        'Dm Open': { x: 0, y: 0 }
     }
 };
 

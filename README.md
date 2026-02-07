@@ -46,7 +46,7 @@ To run locally:
 *   `js/chords/`: Modular chord definitions.
     *   `open.js`: Standard open chords.
     *   `barre.js`: Movable barre shapes.
-    *   `triads.js` & `quadriads.js`: Theory-based chord shapes.
+    *   `triads.js`: Theory-based chord shapes.
 
 ---
 
