@@ -838,6 +838,9 @@ const uiManager = {
         } else if(suffix.trim()) {
             type = suffix.trim();
         }
+        // Remove "Open" from type/mode name to sync correctly
+        type = type.replace(/Open/g, '').trim(); 
+        if(type === '') type = 'Major';
         
         // Sync State
         if (this.selectedSelectorRoot !== root) this.selectedSelectorRoot = root;
@@ -1033,57 +1036,11 @@ const uiManager = {
             return !['#','b'].includes(remainder[0]);
         });
 
-        // 2. CATEGORIES
-        const categories = new Set(['All']);
-        rootKeys.forEach(k => {
-            const data = chords[k];
-            if(data.tags) {
-                if(data.tags.includes('Open')) categories.add('Open');
-                if(data.tags.includes('Barre')) categories.add('Barre');
-                if(data.tags.includes('Triad')) categories.add('Triad');
-                if(data.tags.includes('Tetrad')) categories.add('Tetrad');
-            }
-        });
-
-        let validCat = this.selectedSelectorCategory || 'All';
-        if(!categories.has(validCat)) validCat = 'All';
-        this.selectedSelectorCategory = validCat;
-
-        const catContainer = document.getElementById('category-selector');
-        if(catContainer) {
-            catContainer.innerHTML = '';
-            const catOrder = ['All', 'Open', 'Barre', 'Triad', 'Tetrad'];
-            const sortedCats = Array.from(categories).sort((a,b) => {
-                 let ia = catOrder.indexOf(a);
-                 let ib = catOrder.indexOf(b);
-                 if(ia === -1) ia = 99; 
-                 if(ib === -1) ib = 99;
-                 return ia - ib;
-            });
-            
-            sortedCats.forEach(c => {
-                const btn = document.createElement('button');
-                btn.className = `selector-btn ${c === validCat ? 'selected' : ''}`;
-                // Use translations if available, simpler logic for now
-                const label = TranslationManager.t ? (TranslationManager.t(c) || c) : c;
-                btn.textContent = label;
-                btn.onclick = () => this.selectSelectorCategory(c);
-                catContainer.appendChild(btn);
-            });
-        }
-
-        // Filter keys by Category
-        const catKeys = rootKeys.filter(k => {
-            if(validCat === 'All') return true;
-            const data = chords[k];
-            return data.tags && data.tags.includes(validCat);
-        });
-
-        // 3. TYPES
+        // 2. TYPES (Modes) - Now dependent on Root only
         const types = new Set();
-        const typeMap = {};
+        const typeMap = {}; // type -> list of keys
 
-        catKeys.forEach(k => {
+        rootKeys.forEach(k => {
             let suffix = k.substring(validRoot.length);
             let type = "Major";
             const pIdx = suffix.indexOf(' (');
@@ -1093,6 +1050,10 @@ const uiManager = {
             } else if(suffix.trim()) {
                 type = suffix.trim();
             }
+            // Remove "Open" from type/mode name to avoid it appearing as a mode
+            type = type.replace(/Open/g, '').trim(); 
+            if(type === '') type = 'Major';
+
             types.add(type);
             
             if(!typeMap[type]) typeMap[type] = [];
@@ -1106,6 +1067,7 @@ const uiManager = {
         if(types.has(validType)) exists = true;
         
         if(!exists) {
+            // Priority: Major -> Minor -> m -> First available
             if(types.has('Major')) validType = 'Major';
             else if(types.has('m')) validType = 'm';
             else if(types.has('Minor')) validType = 'Minor';
@@ -1135,12 +1097,63 @@ const uiManager = {
             });
         }
 
+        // Filter keys by Type
+        const typeKeys = (typeMap[validType] || []);
+
+        // 3. CATEGORIES (Disposition) - Now dependent on Root + Type
+        const categories = new Set(['All']);
+        typeKeys.forEach(k => {
+            const data = chords[k];
+            if(data.tags) {
+                if(data.tags.includes('Open')) categories.add('Open');
+                if(data.tags.includes('Barre')) categories.add('Barre');
+                if(data.tags.includes('Triad')) categories.add('Triad');
+                if(data.tags.includes('Tetrad')) categories.add('Tetrad');
+            }
+        });
+
+        let validCat = this.selectedSelectorCategory || 'All';
+        // If the previously selected category doesn't exist for this Root+Type, fallback to 'All'
+        // But 'All' always exists in our logic.
+        // However, if we want to force a specific filtered view:
+        if(!categories.has(validCat)) validCat = 'All';
+        this.selectedSelectorCategory = validCat;
+
+        const catContainer = document.getElementById('category-selector');
+        if(catContainer) {
+            catContainer.innerHTML = '';
+            const catOrder = ['All', 'Open', 'Barre', 'Triad', 'Tetrad'];
+            const sortedCats = Array.from(categories).sort((a,b) => {
+                 let ia = catOrder.indexOf(a);
+                 let ib = catOrder.indexOf(b);
+                 if(ia === -1) ia = 99; 
+                 if(ib === -1) ib = 99;
+                 return ia - ib;
+            });
+            
+            sortedCats.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = `selector-btn ${c === validCat ? 'selected' : ''}`;
+                const label = TranslationManager.t ? (TranslationManager.t(c) || c) : c;
+                btn.textContent = label;
+                btn.onclick = () => this.selectSelectorCategory(c);
+                catContainer.appendChild(btn);
+            });
+        }
+
+        // Filter keys by Category
+        const finalKeys = typeKeys.filter(k => {
+            if(validCat === 'All') return true;
+            const data = chords[k];
+            return data.tags && data.tags.includes(validCat);
+        });
+
         // 4. VARIATIONS
         const varContainer = document.getElementById('variation-selector');
-        if(varContainer && validType && typeMap[validType]) {
+        if(varContainer) {
             varContainer.innerHTML = '';
             
-            typeMap[validType].sort((a,b) => {
+            finalKeys.sort((a,b) => {
                  const extract = (s) => {
                      const m = s.match(/(\d+)fr/);
                      return m ? parseInt(m[1]) : 0;
@@ -1151,7 +1164,7 @@ const uiManager = {
                  return a.localeCompare(b);
             });
 
-            typeMap[validType].forEach(k => {
+            finalKeys.forEach(k => {
                 const pIdx = k.indexOf('(');
                 let label = k;
                 if(pIdx !== -1) {
