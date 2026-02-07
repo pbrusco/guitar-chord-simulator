@@ -11,7 +11,7 @@ import { TETRAD_CHORDS } from './chords/tetrads.js';
 // TRANSLATION MANAGER
 // ==========================================
 const TranslationManager = {
-    lang: 'en',
+    lang: 'es',
     dict: {
         en: {
             title: "🎸 Hand Simulator",
@@ -38,7 +38,10 @@ const TranslationManager = {
             "Barre": "Barre", "Open": "Open", "Major": "Major", "Minor": "Minor", 
             "E-Shape": "E-Shape", "A-Shape": "A-Shape", "Em-Shape": "Em-Shape", "Am-Shape": "Am-Shape", 
             "Triad": "Triad", "Tetrad": "Tetrad",
-            "Root-Pos": "Root Pos", "1st-Inv": "1st Inv", "2nd-Inv": "2nd Inv"
+            "Root-Pos": "Root Pos", "1st-Inv": "1st Inv", "2nd-Inv": "2nd Inv",
+            "beginner": "🎓 Beginner",
+            // Chord Types
+            "m": "m", "7": "7"
         },
         es: {
             title: "🎸 Simulador de Mano",
@@ -66,7 +69,10 @@ const TranslationManager = {
             "E-Shape": "Forma-Mi", "A-Shape": "Forma-La", "Em-Shape": "Forma-Mim", "Am-Shape": "Forma-Lam", 
             "Triad": "Tríada", "Tetrad": "Cuatríada",
             "Root-Pos": "Pos-Raíz", "1st-Inv": "1ª Inv", "2nd-Inv": "2ª Inv",
-            "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "maj7": "Maj7", "m7": "m7"
+            "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "maj7": "Maj7", "m7": "m7",
+            "beginner": "🎓 Principiante",
+            // Chord Types
+            "m": "m", "7": "7"
         }
     },
 
@@ -754,6 +760,30 @@ const uiManager = {
     selectedSelectorRoot: 'C',
     selectedSelectorType: 'Major',
     selectedSelectorCategory: 'All', // New State
+    beginnerMode: false,
+
+    toggleBeginnerMode() {
+        this.beginnerMode = !this.beginnerMode;
+        
+        const btn = document.getElementById('beginner-btn');
+        if(btn) {
+           btn.style.opacity = this.beginnerMode ? '1' : '0.5';
+           // btn.innerHTML = this.beginnerMode ? '🎓 Beginner' : '<span style="filter:grayscale(1)">🎓</span> Beginner';
+        }
+        
+        // Reset selection if switching TO beginner mode
+        if(this.beginnerMode) {
+            this.selectedSelectorRoot = 'C';
+            this.selectedSelectorType = 'Major';
+            GuitarApp.setChord('C Open');
+        } else {
+             // ensure visible
+             const catContainer = document.getElementById('category-selector');
+             if(catContainer) catContainer.style.display = 'flex';
+        }
+        
+        this.renderSelectors();
+    },
 
     updateUIForChord(name, offset) {
         document.getElementById('current-chord-display').textContent = TranslationManager.translateChordName(name);
@@ -880,11 +910,18 @@ const uiManager = {
                 kType = suffix.trim();
             }
             
+            // Fix: Strip "Open" from kType to match selector Logic
+            kType = kType.replace(/Open/g, '').trim();
+
             const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
             if (norm(kType) !== norm(type)) return false;
 
             // Check Category
-            if (cat !== 'All') {
+            // IF Beginner Mode: FORCE check for 'Open' tag
+            if (this.beginnerMode) {
+                const cTags = LibraryManager.data.chords[k].tags || [];
+                if (!cTags.includes('Open')) return false;
+            } else if (cat !== 'All') {
                 const cTags = LibraryManager.data.chords[k].tags || [];
                 if (!cTags.includes(cat)) return false;
             }
@@ -910,13 +947,29 @@ const uiManager = {
             });
             const mk = k.match(/(\d+)fr/);
             const fret = mk ? parseInt(mk[1]) : 0;
-            if(fret < 5) score += 1;
-
-            if(score > maxScore) {
-                maxScore = score;
-                best = k;
-            }
+            // Sorting Logic: Prefer lower frets for stable default selection
+            // We give a small bonus to lower frets, but if a "Shape" or "Triad" match was found above, it might override.
+            // If we want STRICT "First Option" behavior (usually meaning lowest fret / simplest), 
+            // we should perhaps just sort the candidates by fret and pick the first one?
+            // The request says "automatically select the first option of the variants".
+            // The variants in UI are sorted by fret. So let's align this logic to that.
         });
+        
+        // Revised Logic: Just pick the "First" variant as it would appear in the UI list.
+        // The UI sorts by Fret number.
+        candidates.sort((a,b) => {
+             const extract = (s) => {
+                 const m = s.match(/(\d+)fr/);
+                 return m ? parseInt(m[1]) : 0;
+             };
+             const fa = extract(a);
+             const fb = extract(b);
+             if(fa !== fb) return fa - fb;
+             return a.localeCompare(b);
+        });
+        
+        // Select the first one
+        best = candidates[0];
         
         GuitarApp.setChord(best);
     },
@@ -924,7 +977,24 @@ const uiManager = {
     renderSelectors() {
         if(!LibraryManager.data || !LibraryManager.data.chords) return;
         const chords = LibraryManager.data.chords;
-        const keys = Object.keys(chords);
+        let keys = Object.keys(chords);
+        
+        // Filter for Beginner Mode
+        if(this.beginnerMode) {
+            keys = keys.filter(k => {
+                const c = chords[k];
+                return c.tags && c.tags.includes('Open');
+            });
+            // Hide Category Selector
+            const catContainer = document.getElementById('category-selector');
+            if(catContainer) catContainer.style.display = 'none';
+            
+            // Should also hide/disable variations if too many? No, simple opens usually don't have many.
+        } else {
+             const catContainer = document.getElementById('category-selector');
+             if(catContainer) catContainer.style.display = 'flex';
+        }
+
         const notesOrder = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
 
         // 1. ROOTS
@@ -1020,7 +1090,8 @@ const uiManager = {
             sortedTypes.forEach(t => {
                 const btn = document.createElement('button');
                 btn.className = `selector-btn ${t === validType ? 'selected' : ''}`;
-                btn.textContent = (t === 'Major' || t === '') ? 'Major' : t;
+                const labelKey = (t === 'Major' || t === '') ? 'Major' : t;
+                btn.textContent = TranslationManager.t(labelKey);
                 btn.onclick = () => this.selectSelectorType(t);
                 typeContainer.appendChild(btn);
             });
@@ -1080,6 +1151,16 @@ const uiManager = {
         // 4. VARIATIONS
         const varContainer = document.getElementById('variation-selector');
         if(varContainer) {
+            // Hide if Beginner Mode OR only 1 option available?
+            // User requested to UNHIDE it for beginner mode for now (or maybe just keep it visible if multiple exist?)
+            // "Begginer mode still does not work, try unhidding the variant selector"
+            // Reverting logic to show it unless just 1 option
+            if (finalKeys.length <= 1) {
+                varContainer.style.display = 'none';
+            } else {
+                varContainer.style.display = 'flex';
+            }
+
             varContainer.innerHTML = '';
             
             finalKeys.sort((a,b) => {

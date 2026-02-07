@@ -194,30 +194,30 @@ export const SHAPES = {
         tags: ['Tetrad', 'm7', 'Root-Pos'],
         rootString: 4,
         offsets: [
-            { string: 4, fret: 0, finger: 0 }, // Root
-            { string: 3, fret: 2, finger: 2 }, // 5th
-            { string: 2, fret: 1, finger: 1 }, // b7
-            { string: 1, fret: 1, finger: 1 }  // m3 (Barre likely needed or finger 1 flat)
+            { string: 4, fret: 0, finger: 0 }, // Root (Index)
+            { string: 3, fret: 2, finger: 3 }, // 5th (Pinky)
+            { string: 2, fret: 1, finger: 1 }, // b7 (Middle)
+            { string: 1, fret: 1, finger: 2 }  // m3 (Ring)
         ]
     },
     'Tetrad m7b5 (Root on 4)': {
         tags: ['Tetrad', 'm7b5', 'Root-Pos'],
         rootString: 4,
         offsets: [
-            { string: 4, fret: 0, finger: 0 }, // Root
-            { string: 3, fret: 1, finger: 2 }, // b5
-            { string: 2, fret: 1, finger: 1 }, // b7
-            { string: 1, fret: 1, finger: 1 }  // m3
+            { string: 4, fret: 0, finger: 0 }, // Root (Index)
+            { string: 3, fret: 1, finger: 2 }, // b5 (Ring)
+            { string: 2, fret: 1, finger: 1 }, // b7 (Middle)
+            { string: 1, fret: 1, finger: 3 }  // m3 (Pinky)
         ]
     },
     'Tetrad dim7 (Root on 4)': {
         tags: ['Tetrad', 'dim7', 'Root-Pos'],
         rootString: 4,
         offsets: [
-            { string: 4, fret: 0, finger: 0 }, // Root
-            { string: 3, fret: 1, finger: 2 }, // b5
-            { string: 2, fret: 0, finger: 0 }, // bb7 (6th) - Barre via Index
-            { string: 1, fret: 1, finger: 1 }  // m3
+            { string: 4, fret: 0, finger: 0 }, // Root (Index)
+            { string: 3, fret: 1, finger: 2 }, // b5 (Ring)
+            { string: 2, fret: 0, finger: 1 }, // bb7 (6th) - Middle
+            { string: 1, fret: 1, finger: 3 }  // m3 (Pinky)
         ]
     },
 
@@ -229,7 +229,7 @@ export const SHAPES = {
             { string: 6, fret: 0, finger: 0 }, // Root (Index)
             { string: 4, fret: 1, finger: 2 }, // 7th (Ring)
             { string: 3, fret: 1, finger: 3 }, // 3rd (Pinky)
-            { string: 2, fret: 0, finger: 0 }  // 5th (Index)
+            { string: 2, fret: 0, finger: 1 }  // 5th (Middle)
         ]
     },
     'Tetrad m7 (Root on 6)': {
@@ -237,9 +237,9 @@ export const SHAPES = {
         rootString: 6,
         offsets: [
             { string: 6, fret: 0, finger: 0 }, // Root
-            { string: 4, fret: 0, finger: 0 }, // b7
-            { string: 3, fret: 0, finger: 0 }, // b3
-            { string: 2, fret: 0, finger: 0 }  // 5th
+            { string: 4, fret: 0, finger: 1 }, // b7
+            { string: 3, fret: 0, finger: 2 }, // b3
+            { string: 2, fret: 0, finger: 3 }  // 5th
         ]
     },
     'Tetrad 7 (Root on 6)': {
@@ -247,9 +247,9 @@ export const SHAPES = {
         rootString: 6,
         offsets: [
             { string: 6, fret: 0, finger: 0 }, // Root
-            { string: 4, fret: 0, finger: 0 }, // b7
+            { string: 4, fret: 0, finger: 2 }, // b7 (Ring)
             { string: 3, fret: 1, finger: 1 }, // 3rd (Middle)
-            { string: 2, fret: 0, finger: 0 }  // 5th
+            { string: 2, fret: 0, finger: 3 }  // 5th (Pinky)
         ]
     },
 
@@ -278,10 +278,10 @@ export const SHAPES = {
         tags: ['Tetrad', '7th', 'Drop2'],
         rootString: 5,
         offsets: [
-            { string: 5, fret: 0, finger: 0 }, // Root
-            { string: 4, fret: 2, finger: 2 }, // 5th
-            { string: 3, fret: 0, finger: 0 }, // b7
-            { string: 2, fret: 2, finger: 3 }  // 3rd
+            { string: 5, fret: 0, finger: 0 }, // Root (Index)
+            { string: 4, fret: 2, finger: 2 }, // 5th (Ring)
+            { string: 3, fret: 0, finger: 1 }, // b7 (Middle)
+            { string: 2, fret: 2, finger: 3 }  // 3rd (Pinky)
         ]
     }
 };

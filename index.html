@@ -20,8 +20,9 @@
         <div class="panel-header">
             <h3 data-i18n="title">🎸 Hand Simulator</h3>
             <div style="display: flex; gap: 4px; margin-right: 8px;">
-                <button class="btn-xs" onclick="TranslationManager.setLang('en')" id="lang-en" style="opacity: 1;">EN</button>
-                <button class="btn-xs" onclick="TranslationManager.setLang('es')" id="lang-es" style="opacity: 0.5;">ES</button>
+                <button class="btn-xs" onclick="TranslationManager.setLang('en')" id="lang-en" style="opacity: 0.5;">EN</button>
+                <button class="btn-xs" onclick="TranslationManager.setLang('es')" id="lang-es" style="opacity: 1;">ES</button>
+                <button class="btn-xs" onclick="uiManager.toggleBeginnerMode()" id="beginner-btn" style="opacity: 0.5; margin-left: 4px;" data-i18n="beginner">🎓 Beginner</button>
             </div>
             <button id="toggle-btn" onclick="togglePanel()" class="icon-btn" title="Toggle Panel">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
