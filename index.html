@@ -262,8 +262,8 @@
             <h2>Manage Library</h2>
             
             <div class="modal-actions">
-                <button class="btn" onclick="libraryManager.exportLibrary()" style="background: #555;">💾 Export JSON</button>
-                <button class="btn" onclick="document.getElementById('importFile').click()" style="background: #555;">📂 Import JSON</button>
+                <button class="btn" onclick="libraryManager.exportLibrary()" style="background: #555;">💾 Export YAML</button>
+                <button class="btn" onclick="document.getElementById('importFile').click()" style="background: #555;">📂 Import YAML</button>
                 <button class="btn" onclick="libraryManager.resetLibrary()" style="background: #d32f2f; margin-left: auto;">Reset Defaults</button>
                 <input type="file" id="importFile" style="display:none" onchange="libraryManager.importLibrary(this)">
             </div>
@@ -312,33 +312,6 @@
                 'G': { positions: [ { string: 5, fret: 2, finger: 0 }, { string: 6, fret: 3, finger: 1 }, { string: 1, fret: 3, finger: 2 }, { string: 2, fret: 3, finger: 3 } ], tags: ['Major', 'Open'] },
                 'E': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 4, fret: 2, finger: 2 } ], tags: ['Major', 'Open'] },
                 'D': { positions: [ { string: 3, fret: 2, finger: 0 }, { string: 1, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Major', 'Open'] },
-                
-                // MINOR
-                'Am': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 3, fret: 2, finger: 2 } ], tags: ['Minor', 'Open'] },
-                'Em': { positions: [ { string: 5, fret: 2, finger: 1 }, { string: 4, fret: 2, finger: 2 } ], tags: ['Minor', 'Open'] },
-                'Dm': { positions: [ { string: 1, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Minor', 'Open'] },
-
-                // BARRE CHORDS (E-Shape / A-Shape roots)
-                'F': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 }, { string: 4, fret: 3, finger: 3 } ], tags: ['Major', 'Barre'] }, // Simplified F
-                'Bm': { positions: [ { string: 5, fret: 2, finger: 0 }, { string: 2, fret: 3, finger: 1 }, { string: 4, fret: 4, finger: 2 }, { string: 3, fret: 4, finger: 3 } ], tags: ['Minor', 'Barre'] },
-                
-                // 7th
-                'C7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 }, { string: 3, fret: 3, finger: 3 } ], tags: ['Dominant 7th', 'Open'] },
-                'A7': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 2, fret: 2, finger: 1 } ], tags: ['Dominant 7th', 'Open'] },
-                'E7': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 } ], tags: ['Dominant 7th', 'Open'] },
-                'G7': { positions: [ { string: 1, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 6, fret: 3, finger: 2 } ], tags: ['Dominant 7th', 'Open'] },
-                'D7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 1, fret: 2, finger: 2 } ], tags: ['Dominant 7th', 'Open'] },
-                'B7': { positions: [ { string: 4, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 3, fret: 2, finger: 2 }, { string: 1, fret: 2, finger: 3 } ], tags: ['Dominant 7th', 'Open'] },
-
-                // MAJOR 7th
-                'Cmaj7': { positions: [ { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 } ], tags: ['Major 7th', 'Open'] },
-                'Amaj7': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 2, fret: 2, finger: 2 } ], tags: ['Major 7th', 'Open'] },
-                'Fmaj7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 4, fret: 3, finger: 2 } ], tags: ['Major 7th', 'Open'] },
-
-                // SUSPENDED
-                'Dsus4': { positions: [ { string: 3, fret: 2, finger: 0 }, { string: 2, fret: 3, finger: 2 }, { string: 1, fret: 3, finger: 3 } ], tags: ['Suspended', 'Open'] },
-                'Asus4': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Suspended', 'Open'] },
-
             },
             offsets: {
                 // Offsets defaults - many just use 0, but good to have keys
@@ -347,59 +320,67 @@
                 'G': { x: -0.3, y: 1, z: 0.2 },
                 'E': { x: -0.1, y: 0.8, z: 0 },
                 'D': { x: -1, y: 0, z: 0 },
-                'F': { x: 0, y: 0, z: 0 },
-                'Am': { x: 0, y: 0, z: 0 },
-                'Em': { x: 0, y: 0, z: 0 },
-                'Dm': { x: 0, y: 0, z: 0 },
-                'Bm': { x: -1, y: 0, z: 0 },
-                'C7': { x: 0, y: 0, z: 0 },
-                'A7': { x: -1, y: 0.4, z: 0 },
-                'E7': { x: -0.1, y: 0.8, z: 0 },
-                'G7': { x: -0.3, y: 1, z: 0.2 },
-                'D7': { x: -1, y: 0, z: 0 },
-                'B7': { x: 0, y: 0, z: 0 },
-                'Cmaj7': { x: 0, y: 0, z: 0 },
-                'Amaj7': { x: -1, y: 0.4, z: 0 },
-                'Fmaj7': { x: 0, y: 0, z: 0 },
-                'Dsus4': { x: -1, y: 0, z: 0 },
-                'Asus4': { x: -1, y: 0.4, z: 0 },
             }
         };
 
         const LibraryManager = {
             data: { chords: {}, offsets: {} },
 
-            init() {
+            async init() {
+                // Try to load from "defaults.yaml" first
+                try {
+                    const response = await fetch('defaults.yaml');
+                    if(response.ok) {
+                        const text = await response.text();
+                        const parsed = jsyaml.load(text);
+                        this.loadData(parsed);
+                        console.log("Loaded defaults.yaml");
+                    } else {
+                        throw new Error("defaults.yaml not found");
+                    }
+                } catch(err) {
+                    console.warn("Could not load defaults.yaml, checking local storage...", err);
+                    this.loadFromStorage();
+                }
+            },
+
+            loadFromStorage() {
                 const saved = localStorage.getItem('guitarChordLibrary');
                 if (saved) {
                     try {
                         let parsed = JSON.parse(saved);
-                        
-                        // MIGRATION / VALIDATION check
-                        let dirty = false;
-                        if(parsed.chords) {
-                            for(let k in parsed.chords) {
-                                if(Array.isArray(parsed.chords[k])) {
-                                    parsed.chords[k] = { positions: parsed.chords[k], tags: [] };
-                                    dirty = true;
-                                }
-                            }
-                        }
-
-                        this.data = parsed;
-                        // Structure check
-                        if(!this.data.chords) this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
-                        if(!this.data.offsets) this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
-                        
-                        if(dirty) this.save();
-
-                    } catch(e) { console.error("Corrupt library", e); this.resetLibrary(); }
+                        this.loadData(parsed);
+                    } catch(e) { console.error("Corrupt library", e); this.resetDataToDefaults(); }
                 } else {
                     this.resetDataToDefaults();
                 }
             },
 
+            loadData(parsed) {
+                if (!parsed) return; // Guard against null
+
+                // VALIDATION check
+                let dirty = false;
+                if(parsed.chords) {
+                    for(let k in parsed.chords) {
+                        if(Array.isArray(parsed.chords[k])) {
+                            parsed.chords[k] = { positions: parsed.chords[k], tags: [] };
+                            dirty = true;
+                        }
+                    }
+                }
+
+                this.data = parsed;
+                // Structure check
+                if(!this.data.chords) this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
+                if(!this.data.offsets) this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
+                
+                // If we loaded something that needed migration, save it back if using storage
+                // but since we prioritize file, maybe not needed.
+            },
+
             resetDataToDefaults() {
+                // Hardcoded fallback if file is missing
                 this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
                 this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
             },
@@ -448,7 +429,6 @@
 
                             this.data = imported;
                             this.save();
-                            alert("Library imported successfully!");
                             closeModal();
                             GuitarApp.setChord(Object.keys(this.data.chords)[0]);
                         } else { alert("Invalid file structure"); }
@@ -589,7 +569,8 @@
                 // Initialize Fingers
                 for (let i = 0; i < 4; i++) {
                     const fConfig = this.fingerConfigs[i];
-                    const f = new Finger(this.skinTones[i], fConfig.offset, fConfig.lengths, this.scene);
+                    // Using distinct colors for fingers as requested
+                    const f = new Finger(this.fingerColors[i], fConfig.offset, fConfig.lengths, this.scene);
                     this.fingers.push(f);
                     this.knucklePositions.push(new THREE.Vector3());
 
@@ -630,6 +611,7 @@
             updatePositions() {
                 const name = this.currentChordName;
                 if(!name || !LibraryManager.data.chords[name]) return;
+                if(!this.markerGroup) return; // Guard not initialized
 
                 this.fingerTargets = [null, null, null, null];
                 this.markerGroup.clear();
@@ -637,10 +619,13 @@
                 const chordObj = LibraryManager.data.chords[name];
                 const chordNotes = chordObj.positions || chordObj; // Fallback for old data if any
                 let avgX = 0, avgZ = 0, count = 0;
+                
+                // Group by finger to detect barre
+                const fingerNotes = [[], [], [], []];
 
                 chordNotes.forEach(note => {
                     const pos = this.getNotePosition(note.string, note.fret);
-                    this.fingerTargets[note.finger] = pos;
+                    fingerNotes[note.finger].push({ ...note, pos });
                     
                     // Visual Marker
                     if (note.fret > 0) {
@@ -666,12 +651,69 @@
                     count++;
                 });
 
+                // Assign Targets with Barre Logic
+                for(let i=0; i<4; i++) {
+                    const notes = fingerNotes[i];
+                    if (notes.length > 0) {
+                        // If multiple notes OR notes span a wide range
+                        // For now, strict count > 1 implies barre usage
+                        if (notes.length > 1) {
+                            this.fingers[i].isBarre = true;
+                            
+                            // Sort by Z (string position) to find span
+                            // Based on analysis: String 6 is at Z ~ 0.7, String 1 at Z ~ -0.7
+                            // Hand is at Z < -0.7. So Tip should go to Max Z.
+                            notes.sort((a,b) => b.pos.z - a.pos.z);
+                            
+                            const maxNote = notes[0];
+                            const minNote = notes[notes.length-1];
+                            
+                            // Extend tip slightly past the last string for realism
+                            const tipPos = maxNote.pos.clone();
+                            tipPos.z += 0.25; 
+                            this.fingerTargets[i] = tipPos;
+
+                            // === BARRE HIGHLIGHT ===
+                            // Create a visual indicator for the barre text/area
+                            const zCenter = (minNote.pos.z + maxNote.pos.z) / 2;
+                            const zSize = (maxNote.pos.z - minNote.pos.z) + 0.4; // +padding
+                            
+                            const highlight = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.35, 0.04, zSize),
+                                new THREE.MeshBasicMaterial({ 
+                                    color: this.fingerColors[i], 
+                                    transparent: true, 
+                                    opacity: 0.3 
+                                })
+                            );
+                            // Position slightly above fretboard
+                            highlight.position.set(maxNote.pos.x, 0.12, zCenter);
+                            this.markerGroup.add(highlight);
+
+                        } else {
+                            this.fingers[i].isBarre = false;
+                            this.fingerTargets[i] = notes[0].pos;
+                        }
+                    } else {
+                        this.fingers[i].isBarre = false; 
+                    }
+                }
+
                 if (count > 0) { avgX /= count; avgZ /= count; }
+
+                // Auto-adjust hand position for Barre chords to reduce stretching
+                // If any finger is barre, we usually push the wrist forward and lower
+                let barreZ = 0;
+                let barreY = 0;
+                if(this.fingers.some(f => f.isBarre)) {
+                     barreZ = 0.6; // Push hand forward (towards Low E)
+                     barreY = -0.2; // Flatten wrist
+                }
 
                 // 3. Position Hand Base
                 const baseX = avgX + this.handOffset.x;
-                const knuckleY = -0.4 + this.handOffset.y;
-                const knuckleZ = avgZ - 1.2 + this.handOffset.z;
+                const knuckleY = -0.4 + this.handOffset.y + barreY;
+                const knuckleZ = avgZ - 1.2 + this.handOffset.z + barreZ;
 
                 for (let i = 0; i < 4; i++) {
                     const config = this.fingerConfigs[i];
@@ -724,6 +766,9 @@
                 requestAnimationFrame(() => this.animate());
                 
                 // Update IK
+                let palmCenter = new THREE.Vector3();
+                let activeCount = 0;
+
                 for (let i = 0; i < 4; i++) {
                     const targetF = this.fingerTargets[i];
                     const targetK = this.knucklePositions[i];
@@ -741,12 +786,27 @@
                         this.actualFingerPositions[i].lerp(targetF, this.transitionSpeed);
                         this.actualKnucklePositions[i].lerp(targetK, this.transitionSpeed);
 
+                        // Track for palm position
+                        palmCenter.add(this.actualKnucklePositions[i]);
+                        activeCount++;
+
                         // Apply to IK
                         this.fingers[i].setTarget(this.actualFingerPositions[i]);
                         this.fingers[i].update(this.actualKnucklePositions[i]);
                     }
                 }
                 
+                // Update Palm
+                if (this.palmMesh && activeCount > 0) {
+                    palmCenter.divideScalar(activeCount);
+                    // Position palm slightly behind and below average knuckle position
+                    this.palmMesh.position.set(palmCenter.x, palmCenter.y - 0.15, palmCenter.z + 0.6);
+                    
+                    // Simple rotation to follow the "slope" of the hand?
+                    // For now, fixed rotation looks stable enough for this view
+                    this.palmMesh.rotation.x = -0.2; 
+                }
+
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
             },
@@ -767,52 +827,92 @@
                 this.segments = [];
                 this.joints = [];
                 this.targetPos = new THREE.Vector3();
-                const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 });
+                this.isBarre = false;
+
+                // More realistic material
+                const mat = new THREE.MeshStandardMaterial({ 
+                    color: color, 
+                    roughness: 0.5,
+                    metalness: 0.1
+                });
+                const jointMat = new THREE.MeshStandardMaterial({
+                    color: 0xbaa085, // skin tone for joints to contrast
+                    roughness: 0.6
+                });
 
                 // Segments
                 for(let l of lengths) {
-                    const seg = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, l, 4, 8), mat);
+                     // Tapered Cylinder for realism
+                    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 8), mat);
                     seg.castShadow = true;
                     scene.add(seg);
                     this.segments.push(seg);
                 }
                 // Joints
                 for(let i=0; i<4; i++) {
-                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat);
+                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), jointMat);
                     joint.castShadow = true;
                     scene.add(joint);
                     this.joints.push(joint);
                 }
             }
 
-            setTarget(pos) { this.targetPos.copy(pos); }
+            setTarget(pos) { 
+                this.targetPos.copy(pos); 
+            }
 
             update(knucklePos) {
                 // Bezier IK
                 const p0 = knucklePos;
                 const p2 = this.targetPos;
-                const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
-                const dist = p0.distanceTo(p2);
                 
-                // Height arch calculation
-                mid.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
-                mid.z -= 0.2; // Pull out slightly
-
-                // Bezier Point Calc
-                const getP = (t) => {
-                    const u = 1 - t;
-                    return new THREE.Vector3(
-                        u*u*p0.x + 2*u*t*mid.x + t*t*p2.x,
-                        u*u*p0.y + 2*u*t*mid.y + t*t*p2.y,
-                        u*u*p0.z + 2*u*t*mid.z + t*t*p2.z
-                    );
-                };
-
+                let pos;
                 const totalLen = this.lengths.reduce((a,b)=>a+b,0);
                 const t1 = this.lengths[0]/totalLen;
                 const t2 = (this.lengths[0] + this.lengths[1])/totalLen;
 
-                const pos = [p0, getP(t1), getP(t2), p2];
+                if (this.isBarre) {
+                    const barreHeight = 0.48; // Just above string height (0.35)
+                    p2.y = barreHeight; 
+                    
+                    // For barre, we want a linear finger on the fretboard
+                    // Function to get point on line between projected P0 and P2
+                    const getBarrePoint = (t) => {
+                        return new THREE.Vector3(
+                            p0.x + (p2.x - p0.x) * t,
+                            barreHeight, 
+                            p0.z + (p2.z - p0.z) * t
+                        );
+                    };
+
+                    // Joint 1 (End of Proximal) & Joint 2 (End of Intermediate)
+                    // We place them at barreHeight to ensure the meaty part is flat
+                    const j1 = getBarrePoint(t1);
+                    const j2 = getBarrePoint(t2);
+                    
+                    pos = [p0, j1, j2, p2];
+
+                } else {
+                    // Standard Arc for Open Chords
+                    const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
+                    const dist = p0.distanceTo(p2);
+                    
+                    // Height arch calculation
+                    mid.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
+                    mid.z -= 0.2; // Pull out slightly
+
+                    // Bezier Point Calc
+                    const getP = (t) => {
+                        const u = 1 - t;
+                        return new THREE.Vector3(
+                            u*u*p0.x + 2*u*t*mid.x + t*t*p2.x,
+                            u*u*p0.y + 2*u*t*mid.y + t*t*p2.y,
+                            u*u*p0.z + 2*u*t*mid.z + t*t*p2.z
+                        );
+                    };
+
+                    pos = [p0, getP(t1), getP(t2), p2];
+                }
 
                 // Apply to meshes
                 for(let i=0; i<4; i++) this.joints[i].position.copy(pos[i]);
@@ -1044,15 +1144,23 @@
                 closeModal();
                 GuitarApp.setChord(Object.keys(LibraryManager.data.chords)[0] || 'C');
             }
-        }
+        };
 
         // --- BOOTSTRAP ---
-        LibraryManager.init();
-        GuitarApp.init();
+        (async function bootstrap() {
+            try {
+                await LibraryManager.init();
+                GuitarApp.init();
 
-        // Initial Load
-        const firstChord = Object.keys(LibraryManager.data.chords)[0] || 'C';
-        GuitarApp.setChord(firstChord);
+                // Initial Load
+                const keys = Object.keys(LibraryManager.data.chords);
+                const firstChord = keys.length > 0 ? keys[0] : 'C'; // Fallback
+                GuitarApp.setChord(firstChord);
+            } catch(e) {
+                console.error("Bootstrap failed:", e);
+                alert("App startup failed: " + e);
+            }
+        })();
 
     </script>
 </body>
