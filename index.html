@@ -668,9 +668,12 @@
                             const maxNote = notes[0];
                             const minNote = notes[notes.length-1];
                             
-                            // Extend tip slightly past the last string for realism
+                            // Extend tip to be exactly at the top string (or just slightly over)
                             const tipPos = maxNote.pos.clone();
-                            tipPos.z += 0.25; 
+                            // If this note is on Low E (string 6), pos.z is ~0.7.
+                            // User wants it "exactly at the top". Let's assume clamping to 0.75 for a tiny overlap
+                            // but basically ending there.
+                            tipPos.z = Math.max(0.72, tipPos.z + 0.05); 
                             this.fingerTargets[i] = tipPos;
 
                             // === BARRE HIGHLIGHT ===
@@ -724,6 +727,16 @@
                         knuckleY + yStagger,
                         knuckleZ + zStagger
                     );
+
+                    // BARRE OVERRIDE
+                    // Force the knuckle to be perpendicular (Same X) and flat (Same Y/Z start)
+                    if(this.fingers[i].isBarre && this.fingerTargets[i]) {
+                         const t = this.fingerTargets[i];
+                         this.knucklePositions[i].x = t.x; // Perpendicular to fret
+                         this.knucklePositions[i].y = 0.48; // Flat height
+                         // Start "below" High E (z=-0.7).
+                         this.knucklePositions[i].z = -0.85; 
+                    }
                 }
 
                 // 4. Handle Unused Fingers (Smart Parking)
