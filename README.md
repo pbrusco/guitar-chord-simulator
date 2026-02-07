@@ -16,12 +16,17 @@ This project visualizes guitar chords on a 3D fretboard. Unlike static chord dia
     *   Procedural skin textures with subsurface scattering simulation.
     *   Physically based materials for realistic lighting and sheen.
     *   Tapered finger geometry with fingernails.
+    *   **Toggle Visibility**: Option to hide the hand to view finger positions on the fretboard clearly.
 *   **Smart Physics Engine**: 
     *   Real-time Inverse Kinematics (IK) for finger placement.
     *   Specialized logic for Barre chords to flatten the index finger and adjust wrist rotation.
-*   **Search & Organization**:
-    *   Real-time search filtering.
-    *   Color-coded chord groups (Open, Barre, Power, Jazz, etc.).
+*   **Audio Generation**:
+    *   **SoundManager**: Real-time synthesized audio playback for every chord.
+    *   Strums the exact notes based on string/fret positions.
+*   **Navigation & Views**:
+    *   **Hierarchical Selector**: Intelligent filtering by Root > Type > Category > Inversion.
+    *   **View Toggle**: Switch between Standard Perspective and Top-Down (Player's View) modes.
+    *   **Chord Monitor**: Heads-up display for the current active chord.
 *   **Multi-Language Support**: Full UI and Chord Name translation (English / Spanish).
 *   **Mobile Optimized**: Responsive UI with specific camera angles and controls for mobile devices.
 *   **Customization**:
@@ -60,12 +65,17 @@ Este proyecto visualiza acordes de guitarra en un diapasón 3D. A diferencia de 
     *   Texturas de piel procedimentales con simulación de dispersión subsuperficial.
     *   Materiales basados en física (PBR) para iluminación realista.
     *   Geometría de dedos detallada con uñas.
+    *   **Visibilidad**: Opción para ocultar la mano y ver claramente las posiciones en el diapasón.
 *   **Motor de Física Inteligente**: 
     *   Cinemática Inversa (IK) en tiempo real.
     *   Lógica especializada para acordes con Cejilla (Barre) que aplana el dedo índice y ajusta la muñeca.
-*   **Búsqueda y Organización**:
-    *   Filtrado de búsqueda en tiempo real.
-    *   Grupos de acordes codificados por colores (Abiertos, Cejilla, Power, Jazz, etc.).
+*   **Generación de Audio**:
+    *   **SoundManager**: Reproducción de audio sintetizado en tiempo real.
+    *   Rasgueo de las notas exactas basado en las posiciones de cuerda/traste.
+*   **Navegación y Vistas**:
+    *   **Selector Jerárquico**: Filtrado inteligente por Tónica > Tipo > Categoría > Inversión.
+    *   **Cambio de Vista**: Alterna entre Perspectiva Estándar y Vista Superior (Vista del Tocador).
+    *   **Monitor de Acordes**: Visualización superior del acorde activo.
 *   **Soporte Multi-idioma**: Traducción completa de UI y nombres de acordes (Inglés / Español).
 *   **Optimizado para Móvil**: UI responsiva con ángulos de cámara y controles específicos para móviles.
 *   **Personalización**:

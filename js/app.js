@@ -1193,11 +1193,13 @@ const uiManager = {
         this.selectedSelectorInversion = 'All';
         this.renderSelectors();
         this.ensurePanelOpen();
+        this.tryAutoSelectChord();
     },
     selectSelectorInversion(inv) {
         this.selectedSelectorInversion = inv;
         this.renderSelectors();
         this.ensurePanelOpen();
+        this.tryAutoSelectChord();
     },
 
     tryAutoSelectChord() {
