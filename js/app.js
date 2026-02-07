@@ -453,7 +453,8 @@ const GuitarApp = {
             this.actualKnucklePositions.push(new THREE.Vector3());
         }
 
-        // Initialize Palm
+        // Initialize Palm - HIDDEN
+        /*
         const palmGeo = new THREE.BoxGeometry(1.6, 0.25, 1.4);
         const palmMat = new THREE.MeshStandardMaterial({ 
              map: SHARED_SKIN_TEX, 
@@ -462,6 +463,8 @@ const GuitarApp = {
         this.palmMesh = new THREE.Mesh(palmGeo, palmMat);
         this.palmMesh.castShadow = true;
         this.handGroup.add(this.palmMesh);
+        */
+        this.palmMesh = null; // Ensure explicitly null
     },
 
     getNotePosition(stringIdx, fret) {
