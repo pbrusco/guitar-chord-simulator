@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OPEN_CHORDS } from './chords/open.js';
 import { BARRE_CHORDS } from './chords/barre.js';
 import { TRIAD_CHORDS } from './chords/triads.js';
+import { TETRAD_CHORDS } from './chords/tetrads.js';
 
 // ==========================================
 // TRANSLATION MANAGER
@@ -34,7 +35,9 @@ const TranslationManager = {
             
             // Tags
             "Barre": "Barre", "Open": "Open", "Major": "Major", "Minor": "Minor", 
-            "E-Shape": "E-Shape", "A-Shape": "A-Shape", "Em-Shape": "Em-Shape", "Am-Shape": "Am-Shape", "Triad": "Triad"
+            "E-Shape": "E-Shape", "A-Shape": "A-Shape", "Em-Shape": "Em-Shape", "Am-Shape": "Am-Shape", 
+            "Triad": "Triad", "Tetrad": "Tetrad",
+            "Root-Pos": "Root Pos", "1st-Inv": "1st Inv", "2nd-Inv": "2nd Inv"
         },
         es: {
             title: "🎸 Simulador de Mano",
@@ -58,7 +61,10 @@ const TranslationManager = {
             
             // Tags
             "Barre": "Cejilla", "Open": "Abierto", "Major": "Mayor", "Minor": "Menor", 
-            "E-Shape": "Forma-Mi", "A-Shape": "Forma-La", "Em-Shape": "Forma-Mim", "Am-Shape": "Forma-Lam", "Triad": "Tríada"
+            "E-Shape": "Forma-Mi", "A-Shape": "Forma-La", "Em-Shape": "Forma-Mim", "Am-Shape": "Forma-Lam", 
+            "Triad": "Tríada", "Tetrad": "Cuatríada",
+            "Root-Pos": "Pos-Raíz", "1st-Inv": "1ª Inv", "2nd-Inv": "2ª Inv",
+            "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "maj7": "Maj7", "m7": "m7"
         }
     },
 
@@ -75,18 +81,7 @@ const TranslationManager = {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if(this.dict[lang][key]) {
-                // Check if it has an icon (hacky but works for Add Custom)
-                if(el.children.length === 0) el.textContent = this.dict[lang][key];
-                else {
-                    // Preserve icon if possible
-                    if(key === 'add_custom') {
-                        // Keep the icon if it's purely text replacement intended
-                        // But current impl replaces content. 
-                        // In original code: if(key === 'add_custom') el.textContent = ... which wipes the icon "➕ " if it was text.
-                        // Actually the original code had "➕ Add Custom" in the text string in dict.
-                        el.textContent = this.dict[lang][key];
-                    }
-                }
+                 el.textContent = this.dict[lang][key];
             }
         });
 
@@ -109,17 +104,29 @@ const TranslationManager = {
         const notes = { 'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si' };
         
         // 1. Replace Roots
-        for(let note in notes) {
-            const regex = new RegExp(`^${note}`, 'g'); 
+        // Sort keys by length DESC to match 'Bb' before 'B'
+        const sortedNotes = Object.keys(notes).sort((a,b) => b.length - a.length);
+        
+        for(let note of sortedNotes) {
+            const regex = new RegExp(`^${note}`, ''); 
             if(translated.match(regex)) {
+                // Check next char to ensure we don't match B in Bb again if we missed it
+                const next = translated[note.length];
+                if(next !== '#' && next !== 'b') {
                     translated = translated.replace(regex, notes[note]);
-                    break; 
+                    break;
+                }
             }
         }
 
-        // 2. Replace Terms in parens
+        // 2. Replace Terms 
+        translated = translated.replace('(Open)', '(Abierto)');
         translated = translated.replace('Open', 'Abierto');
         translated = translated.replace('Barre', 'Cejilla');
+        translated = translated.replace('Triad', 'Tríada');
+        translated = translated.replace('Tetrad', 'Cuatríada');
+        translated = translated.replace('Root', 'Raíz');
+        translated = translated.replace('Inv', 'Inv'); // Same
         translated = translated.replace(/(\d+)fr/, '$1tr'); // 3fr -> 3tr
 
         return translated;
@@ -135,6 +142,7 @@ const DEFAULTS = {
         ...OPEN_CHORDS,
         ...BARRE_CHORDS,
         ...TRIAD_CHORDS,
+        ...TETRAD_CHORDS,
     },
     offsets: {
         // Generic Open Chords
@@ -186,6 +194,19 @@ const LibraryManager = {
         // Structure check
         if(!this.data.chords) this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
         if(!this.data.offsets) this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
+        
+        // --- FIX: Merge new defaults into saved data ---
+        // If we added new chords (like Tetrads) but user has saved data, 
+        // the new defaults wouldn't appear.
+        const defaultChords = DEFAULTS.chords;
+        let added = false;
+        for(let key in defaultChords) {
+            if(!this.data.chords[key]) {
+                this.data.chords[key] = defaultChords[key];
+                added = true;
+            }
+        }
+        if(added) this.save();
     },
 
     resetDataToDefaults() {
@@ -785,18 +806,53 @@ class Finger {
 // UI MANAGER
 // ==========================================
 const uiManager = {
+    selectedSelectorRoot: 'C',
+    selectedSelectorType: 'Major',
+
     updateUIForChord(name, offset) {
-        document.querySelectorAll('.chord-btn').forEach(b => {
-            b.classList.remove('active');
-            if(b.textContent === name) b.classList.add('active');
-        });
         document.getElementById('current-chord-display').textContent = TranslationManager.translateChordName(name);
+
+        // --- NEW SELECTOR LOGIC ---
+        const notesOrder = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+        // Find longest matching root
+        const sortedNotes = [...notesOrder].sort((a,b) => b.length - a.length);
+        let root = 'C';
+        for(const n of sortedNotes) {
+            if(name.startsWith(n)) {
+                // Ensure next char is not part of a longer note symbol (unlikely with sorted check)
+                // e.g. "Bb" vs "B". If "Bb...", "Bb" matches first.
+                root = n;
+                break;
+            }
+        }
+
+        // Type
+        let suffix = name.substring(root.length);
+        let type = "Major";
+        const parenIdx = suffix.indexOf(' (');
+        if(parenIdx !== -1) {
+            let t = suffix.substring(0, parenIdx).trim();
+            if(t) type = t;
+        } else if(suffix.trim()) {
+            type = suffix.trim();
+        }
+        
+        // Sync State
+        if (this.selectedSelectorRoot !== root) this.selectedSelectorRoot = root;
+        
+        // Handle Empty = Major alias
+        const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
+        if (norm(this.selectedSelectorType) !== norm(type)) {
+            this.selectedSelectorType = norm(type);
+        }
+        
+        this.renderSelectors();
 
         ['x', 'y'].forEach(axis => {
             const input = document.querySelector(`input[oninput*="'${axis}'"]`);
-            if(input && offset[axis] !== undefined) input.value = offset[axis];
+            if(input && offset && offset[axis] !== undefined) input.value = offset[axis];
             const disp = document.getElementById(`offset-${axis}`);
-            if(disp && offset[axis] !== undefined) disp.textContent = parseFloat(offset[axis]).toFixed(1);
+            if(disp && offset && offset[axis] !== undefined) disp.textContent = parseFloat(offset[axis]).toFixed(1);
         });
 
         this.renderDiagram(name);
@@ -832,83 +888,239 @@ const uiManager = {
         GuitarApp.setChord(name); 
     },
 
-    renderChordButtons() {
-        const container = document.getElementById('chord-buttons-container');
-        if(!container) return;
-        container.innerHTML = '';
+    selectSelectorRoot(root) {
+        this.selectedSelectorRoot = root;
+        this.renderSelectors();
+        this.tryAutoSelectChord();
+    },
+    selectSelectorType(type) {
+        this.selectedSelectorType = type;
+        this.renderSelectors();
+        this.tryAutoSelectChord();
+    },
+
+    tryAutoSelectChord() {
+        const root = this.selectedSelectorRoot;
+        const type = this.selectedSelectorType;
+        if(!root || !type) return;
+
+        // Find best match for current variation preferences (e.g. if we were on E-Shape, stay on E-Shape)
+        // Get current chord tags
+        const currentName = GuitarApp.currentChordName;
+        let p_tags = [];
+        let p_fret = -1; 
         
-        const searchInput = document.getElementById('chord-search-input');
-        const filter = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        if(currentName && LibraryManager.data.chords[currentName]) {
+             p_tags = LibraryManager.data.chords[currentName].tags || [];
+             const m = currentName.match(/(\d+)fr/);
+             if(m) p_fret = parseInt(m[1]);
+        }
+
+        // Look for candidate keys
+        const keys = Object.keys(LibraryManager.data.chords);
         
+        // Filter by Root and Type
+        const candidates = keys.filter(k => {
+            // Check Root
+            if(!k.startsWith(root)) return false;
+            // Check exact root match (avoid C matching C#)
+            const afterRoot = k[root.length];
+            if(afterRoot === '#' || afterRoot === 'b') return false;
+
+            // Check Type
+            let suffix = k.substring(root.length);
+            let kType = "Major";
+            const pIdx = suffix.indexOf(' (');
+            if(pIdx !== -1) {
+                let t = suffix.substring(0, pIdx).trim();
+                if(t) kType = t;
+            } else if(suffix.trim()) {
+                kType = suffix.trim();
+            }
+            
+            // Normalize
+            const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
+            return norm(kType) === norm(type);
+        });
+
+        if(candidates.length === 0) return;
+
+        // Score candidates based on previous selection
+        let best = candidates[0];
+        let maxScore = -1;
+
+        candidates.forEach(k => {
+            let score = 0;
+            const data = LibraryManager.data.chords[k];
+            const tags = data.tags || [];
+
+            // Same Shape tag?
+            p_tags.forEach(pt => {
+                 if(pt.includes('Shape') && tags.includes(pt)) score += 10;
+                 if(pt.includes('Triad') && tags.includes(pt)) score += 5;
+                 if(pt.includes('Inv') && tags.includes(pt)) score += 5;
+            });
+            
+            // Prefer lower frets generally if no clear match?
+            const mk = k.match(/(\d+)fr/);
+            const fret = mk ? parseInt(mk[1]) : 0;
+            if(fret < 5) score += 1;
+
+            if(score > maxScore) {
+                maxScore = score;
+                best = k;
+            }
+        });
+        
+        GuitarApp.setChord(best);
+    },
+
+    renderSelectors() {
+        if(!LibraryManager.data || !LibraryManager.data.chords) return;
         const chords = LibraryManager.data.chords;
-        const groups = {};
-        const sortOrder = ['Open', 'Barre', 'Power', 'Jazz', 'Basic']; 
+        const keys = Object.keys(chords);
+        const notesOrder = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+
+        // 1. ROOTS
+        const roots = new Set();
+        keys.forEach(k => {
+             for(const n of notesOrder) {
+                 if(k.startsWith(n)) {
+                     const next = k[n.length];
+                     if(next !== '#' && next !== 'b') {
+                         roots.add(n);
+                         break; 
+                     }
+                 }
+             }
+        });
         
-        Object.keys(chords).forEach(key => {
-            if (filter) {
-                const chord = chords[key];
-                const translatedName = TranslationManager.translateChordName(key).toLowerCase();
-                const keyMatch = key.toLowerCase().includes(filter) || translatedName.includes(filter);
+        let validRoot = this.selectedSelectorRoot;
+        if(!roots.has(validRoot) && roots.size > 0) validRoot = 'C'; 
+
+        const rootContainer = document.getElementById('root-selector');
+        if(rootContainer) {
+            rootContainer.innerHTML = '';
+            const sortedRoots = notesOrder.filter(n => roots.has(n));
+            sortedRoots.forEach(r => {
+                const btn = document.createElement('button');
+                btn.className = `selector-btn ${r === validRoot ? 'selected' : ''}`;
+                btn.textContent = r;
+                btn.onclick = () => this.selectSelectorRoot(r);
+                rootContainer.appendChild(btn);
+            });
+        }
+
+        // 2. TYPES
+        const rootKeys = keys.filter(k => {
+            if(!k.startsWith(validRoot)) return false;
+            const remainder = k.substring(validRoot.length);
+            return !['#','b'].includes(remainder[0]);
+        });
+
+        const types = new Set();
+        const typeMap = {};
+
+        rootKeys.forEach(k => {
+            let suffix = k.substring(validRoot.length);
+            let type = "Major";
+            const pIdx = suffix.indexOf(' (');
+            if(pIdx !== -1) {
+                let t = suffix.substring(0, pIdx).trim();
+                if(t) type = t;
+            } else if(suffix.trim()) {
+                type = suffix.trim();
+            }
+            types.add(type);
+            
+            if(!typeMap[type]) typeMap[type] = [];
+            typeMap[type].push(k);
+        });
+
+        let validType = this.selectedSelectorType;
+        const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
+        
+        // Basic check if validType exists in aliases
+        let exists = false;
+        if(types.has(validType)) exists = true;
+        
+        if(!exists) {
+            // Find fallback
+            if(types.has('Major')) validType = 'Major';
+            else if(types.has('m')) validType = 'm';
+            else if(types.has('Minor')) validType = 'Minor';
+            else if(types.size > 0) validType = Array.from(types)[0];
+        }
+
+        const typeContainer = document.getElementById('type-selector');
+        if(typeContainer) {
+            typeContainer.innerHTML = '';
+            const typeOrder = ['Major', 'Minor', 'm', '7', 'm7', 'maj7', 'dim', 'aug'];
+            const sortedTypes = Array.from(types).sort((a,b) => {
+                const idxA = typeOrder.indexOf(a);
+                const idxB = typeOrder.indexOf(b);
+                if(idxA!==-1 && idxB!==-1) return idxA - idxB;
+                if(idxA!==-1) return -1;
+                if(idxB!==-1) return 1;
+                return a.localeCompare(b);
+            });
+
+            sortedTypes.forEach(t => {
+                const btn = document.createElement('button');
+                btn.className = `selector-btn ${t === validType ? 'selected' : ''}`;
+                btn.textContent = (t === 'Major' || t === '') ? 'Major' : t;
+                btn.onclick = () => this.selectSelectorType(t);
+                typeContainer.appendChild(btn);
+            });
+        }
+
+        // 3. VARIATIONS
+        const varContainer = document.getElementById('variation-selector');
+        if(varContainer && typeMap[validType]) {
+            varContainer.innerHTML = '';
+            
+            typeMap[validType].sort((a,b) => {
+                 const extract = (s) => {
+                     const m = s.match(/(\d+)fr/);
+                     return m ? parseInt(m[1]) : 0;
+                 };
+                 const fa = extract(a);
+                 const fb = extract(b);
+                 if(fa !== fb) return fa - fb;
+                 return a.localeCompare(b);
+            });
+
+            typeMap[validType].forEach(k => {
+                const pIdx = k.indexOf('(');
+                let label = k;
+                if(pIdx !== -1) {
+                    label = k.substring(pIdx+1, k.length-1);
+                } else {
+                     label = "Default"; 
+                }
+                if(label.startsWith("Barre ")) label = label.substring(6); // Show "3fr" instead of "Barre 3fr"
+                // Or keep it? "Barre 3fr" is clear. "3fr" is also clear given the context.
                 
-                const tagMatch = chord.tags && chord.tags.some(t => {
-                    const translatedTag = TranslationManager.t(t).toLowerCase();
-                    return t.toLowerCase().includes(filter) || translatedTag.includes(filter);
+                const chordData = LibraryManager.data.chords[k];
+                const tags = chordData.tags || [];
+                // Look for Shape tags
+                let tagText = "";
+                tags.forEach(t => {
+                    if(t.includes('Shape')) tagText = t;
+                    if(t === 'Triad') tagText = 'Triad'; 
                 });
 
-                if (!keyMatch && !tagMatch) return;
-            }
-
-            const chord = chords[key];
-            let group = (chord.tags && chord.tags.length > 0) ? chord.tags[0] : 'Other';
-            
-            if (!groups[group]) groups[group] = [];
-            groups[group].push(key);
-        });
-
-        const sortedGroups = Object.keys(groups).sort((a, b) => {
-            const idxA = sortOrder.indexOf(a);
-            const idxB = sortOrder.indexOf(b);
-            
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-            
-            if (a === 'Other') return 1;
-            if (b === 'Other') return -1;
-            
-            return a.localeCompare(b);
-        });
-
-        const groupColors = {
-            'Open': '#10b981',   
-            'Barre': '#3b82f6',  
-            'Power': '#ef4444',  
-            'Jazz': '#8b5cf6',   
-            'Basic': '#f59e0b',  
-            'Other': '#64748b'   
-        };
-
-        sortedGroups.forEach((groupName) => {
-            const color = groupColors[groupName] || groupColors['Other'];
-
-            groups[groupName].sort().forEach(key => {
-                const btn = document.createElement('button');
-                btn.className = 'chord-btn';
-                if (GuitarApp.currentChordName === key) btn.classList.add('active');
-                
-                btn.style.borderBottom = `2px solid ${color}`;
-                
-                btn.textContent = TranslationManager.translateChordName(key);
-                
-                btn.onclick = () => GuitarApp.setChord(key);
-                btn.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    window.editChord(key);
-                };
-                container.appendChild(btn);
+                const btn = document.createElement('div');
+                btn.className = `variation-btn ${GuitarApp.currentChordName === k ? 'active' : ''}`;
+                btn.onclick = () => GuitarApp.setChord(k);
+                btn.innerHTML = `<span>${label}</span> <span class="variation-tag">${tagText}</span>`;
+                varContainer.appendChild(btn);
             });
-        });
+        }
     },
+
+    renderChordButtons() { this.renderSelectors(); },
+
 
     renderDiagram(chordName) {
         const fullChord = LibraryManager.data.chords[chordName];

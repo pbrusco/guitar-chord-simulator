@@ -17,18 +17,6 @@
     <!-- CONTROL PANEL -->
     <div id="controls" class="glass-panel">
         
-        <!-- Search Box -->
-        <div style="padding: 12px 12px 4px 12px;">
-            <input type="text" id="chord-search-input" placeholder="🔍  Search chords..." 
-                   oninput="uiManager.renderChordButtons()"
-                   style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: white; font-size: 13px;">
-        </div>
-
-        <!-- Chords Strip (Shows above panel on mobile) -->
-        <div id="chord-strip">
-            <div id="chord-buttons-container"></div>
-        </div>
-
         <div class="panel-header">
             <h3 data-i18n="title">🎸 Hand Simulator</h3>
             <div style="display: flex; gap: 4px; margin-right: 8px;">
@@ -39,9 +27,17 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
         </div>
+
+        <!-- Hierarchical Selector -->
+        <div id="selector-container" style="padding: 12px 12px 0 12px; border-bottom: 1px solid var(--panel-border);">
+            <div id="root-selector" class="scroll-row"></div>
+            <div id="type-selector" class="scroll-row"></div>
+        </div>
         
         <div id="panel-content">
             
+            <div id="variation-selector" class="variation-list" style="margin-bottom: 16px;"></div>
+
             <button id="manage-btn" class="btn btn-secondary btn-full" onclick="openModal()">
                 <span data-i18n="add_custom">➕ Add Custom</span>
             </button>
