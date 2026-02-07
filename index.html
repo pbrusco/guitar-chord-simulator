@@ -131,6 +131,28 @@
                 <div id="fretboard-text"></div>
             </div>
         </div>
+
+        <div id="debug-controls" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+            <h4 style="margin: 0 0 10px 0; color: #ff9800;">🛠 Hand Position</h4>
+            
+            <div class="control-row" style="display: flex; align-items: center; margin-bottom: 5px;">
+                <label style="width: 20px; color: #aaa;">X:</label>
+                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('x', this.value)" style="flex-grow: 1;">
+                <span id="offset-x" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+            </div>
+            
+            <div class="control-row" style="display: flex; align-items: center; margin-bottom: 5px;">
+                <label style="width: 20px; color: #aaa;">Y:</label>
+                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('y', this.value)" style="flex-grow: 1;">
+                <span id="offset-y" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+            </div>
+            
+            <div class="control-row" style="display: flex; align-items: center;">
+                <label style="width: 20px; color: #aaa;">Z:</label>
+                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('z', this.value)" style="flex-grow: 1;">
+                <span id="offset-z" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+            </div>
+        </div>
         </div>
     </div>
     <div id="info">
@@ -255,6 +277,10 @@
         const handGroup = new THREE.Group();
         scene.add(handGroup);
 
+        // Marker group for indicating finger positions on fretboard
+        const markerGroup = new THREE.Group();
+        scene.add(markerGroup);
+
         // Placeholder groups (kept for compatibility but empty)
         const palmGroup = new THREE.Group();
         handGroup.add(palmGroup);
@@ -304,51 +330,49 @@
             }
 
             update(knuckleWorldPos) {
-                // Realistic guitarist finger IK:
-                // - Knuckles are BELOW the neck (on player's side)
-                // - Fingers reach UP, curve over the edge of the neck, press DOWN on strings
-                // - Like wrapping around a cylinder from below
+                // Spline-based IK: Guarantees fingertips hit the target
+                // Uses a Quadratic Bezier curve to define the finger arc
                 
-                const totalLength = this.lengths.reduce((a, b) => a + b, 0);
+                const p0 = knuckleWorldPos;
+                const p2 = this.targetPos;
                 
-                // Direction from knuckle to target
-                const toTarget = new THREE.Vector3().subVectors(this.targetPos, knuckleWorldPos);
-                const targetDist = toTarget.length();
+                // Control point (P1) - creates the arc
+                // Positioned halfway between knuckle and target, but raised UP to clear fretboard
+                const p1 = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
                 
-                // Fingers start pointing UP and slightly toward the fretboard
-                // From below the neck, reaching up and over
-                let dir = new THREE.Vector3(0, 1, -0.3).normalize();
+                // Height adjustment: Ensure we clear the neck
+                // Fretboard is at Y ~= 0.35. We want to go well above that.
+                // Dynamic height based on reach distance
+                const dist = p0.distanceTo(p2);
+                p1.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
                 
-                // Bend axis: fingers curl FORWARD (toward -Z, toward the fretboard)
-                // This makes them arc over the neck edge and come down on the strings
-                const bendAxis = new THREE.Vector3(1, 0, 0);
+                // Also pull P1 slightly "out" (negative Z) if reaching across neck
+                // to prevent clipping through the neck wood
+                p1.z -= 0.2; 
                 
-                // Calculate bend - need more bend to wrap around
-                const reachRatio = Math.min(targetDist / totalLength, 1.0);
-                const bendAmount = 0.5 + (1.0 - reachRatio) * 0.5;
-                
-                // Joint angles - natural curl wrapping over the neck
-                const maxBend = Math.PI * 0.55; // Up to ~100 degrees per joint
-                const angles = [
-                    bendAmount * maxBend * 0.8,   // MCP (knuckle) - good bend to get over edge
-                    bendAmount * maxBend * 1.0,   // PIP (middle joint) - bends most  
-                    bendAmount * maxBend * 0.4    // DIP (fingertip) - light curl at tip
-                ];
-                
-                // Build joint positions with cumulative bending
-                const positions = [knuckleWorldPos.clone()];
-                let currentDir = dir.clone();
-                
-                for (let i = 0; i < 3; i++) {
-                    // Apply bend at this joint
-                    currentDir.applyAxisAngle(bendAxis, angles[i]);
+                // Bezier function
+                function getBezierPoint(t, p0, p1, p2) {
+                    const u = 1 - t;
+                    const tt = t * t;
+                    const uu = u * u;
                     
-                    // Move to next joint
-                    const nextPos = positions[i].clone().add(
-                        currentDir.clone().multiplyScalar(this.lengths[i])
-                    );
-                    positions.push(nextPos);
+                    const p = new THREE.Vector3();
+                    p.x = uu * p0.x + 2 * u * t * p1.x + tt * p2.x;
+                    p.y = uu * p0.y + 2 * u * t * p1.y + tt * p2.y;
+                    p.z = uu * p0.z + 2 * u * t * p1.z + tt * p2.z;
+                    return p;
                 }
+                
+                // Calculate joint positions along the curve
+                // We divide the curve roughly based on segment length ratios
+                const totalLen = this.lengths.reduce((a,b)=>a+b, 0);
+                const t1 = this.lengths[0] / totalLen; // End of first segment
+                const t2 = (this.lengths[0] + this.lengths[1]) / totalLen; // End of second segment
+                
+                const joint1Pos = getBezierPoint(t1, p0, p1, p2);
+                const joint2Pos = getBezierPoint(t2, p0, p1, p2);
+                
+                const positions = [p0, joint1Pos, joint2Pos, p2];
                 
                 // Update visuals
                 for (let i = 0; i < 4; i++) {
@@ -357,12 +381,17 @@
                 
                 for (let i = 0; i < 3; i++) {
                     const start = positions[i];
-                    const end = positions[i + 1];
+                    const end = positions[i+1];
                     const mid = new THREE.Vector3().lerpVectors(start, end, 0.5);
+                    const segLen = start.distanceTo(end);
                     
                     this.segments[i].position.copy(mid);
                     this.segments[i].lookAt(end);
                     this.segments[i].rotateX(Math.PI / 2);
+                    
+                    // Minor stretch/squash to ensure connectivity
+                    // Original geometry height is this.lengths[i]
+                    this.segments[i].scale.set(1, segLen / this.lengths[i], 1);
                 }
             }
         }
@@ -445,6 +474,16 @@
         let currentChord = 'C';
         let fingerTargets = [null, null, null, null];
         let palmPosition = new THREE.Vector3(-4, -1, 1.5);
+        
+        // Debug offsets
+        let handOffset = new THREE.Vector3(0, 0, 0);
+
+        window.updateHandOffset = function(axis, value) {
+            value = parseFloat(value);
+            handOffset[axis] = value;
+            document.getElementById(`offset-${axis}`).textContent = value.toFixed(1);
+            setChord(currentChord);
+        };
 
         function setChord(chordName) {
             currentChord = chordName;
@@ -459,6 +498,9 @@
             // Reset targets
             fingerTargets = [null, null, null, null];
             
+            // Clear previous markers
+            markerGroup.clear();
+
             // Set finger targets from chord
             const chord = chords[chordName];
             let avgX = 0, avgZ = 0, count = 0;
@@ -466,6 +508,34 @@
             for (const note of chord) {
                 const pos = getNotePosition(note.string, note.fret);
                 fingerTargets[note.finger] = pos;
+
+                // Add visual marker on fretboard
+                if (note.fret > 0) {
+                    const markerGeom = new THREE.CircleGeometry(0.12, 16);
+                    const markerMat = new THREE.MeshBasicMaterial({ 
+                        color: fingerColors[note.finger],
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const marker = new THREE.Mesh(markerGeom, markerMat);
+                    marker.rotation.x = -Math.PI / 2;
+                    // Place slightly above fretboard surface (y=0.15)
+                    marker.position.set(pos.x, 0.16, pos.z); 
+                    markerGroup.add(marker);
+                    
+                    // Add a glowing ring effect
+                    const ringGeom = new THREE.RingGeometry(0.14, 0.17, 16);
+                    const ringMat = new THREE.MeshBasicMaterial({ 
+                        color: 0xffffff,
+                        side: THREE.DoubleSide
+                    });
+                    const ring = new THREE.Mesh(ringGeom, ringMat);
+                    ring.rotation.x = -Math.PI / 2;
+                    ring.position.set(pos.x, 0.162, pos.z);
+                    markerGroup.add(ring);
+                }
+
                 avgX += pos.x;
                 avgZ += pos.z;
                 count++;
@@ -477,16 +547,18 @@
             // Fingers reach UP, wrap over the neck edge, curl DOWN to press strings
             // Just like the reference photo
             
-            const knuckleY = -0.4;  // Below the fretboard (fretboard surface at ~0.35)
-            const knuckleZ = avgZ - 1.2;   // Just behind the target strings (closer to fretboard)
+            // Apply offsets
+            const avgX_off = avgX + handOffset.x;
+            const knuckleY = -0.4 + handOffset.y;  // Below the fretboard
+            const knuckleZ = avgZ - 1.2 + handOffset.z;   // Just behind the target strings
             
             // Position palm behind neck
-            palmPosition.set(avgX, knuckleY - 0.5, knuckleZ + 0.3);
+            palmPosition.set(avgX_off, knuckleY - 0.5, knuckleZ + 0.3);
             palmGroup.position.copy(palmPosition);
             palmGroup.rotation.set(-0.3, 0, 0); // Tilted back
             
             // Thumb position (hidden but kept for compatibility)
-            thumbGroup.position.set(avgX + 0.1, 0.5, knuckleZ + 0.5);
+            thumbGroup.position.set(avgX_off + 0.1, 0.5, knuckleZ + 0.5);
             
             // Calculate knuckle positions (behind neck, below fretboard)
             for (let i = 0; i < 4; i++) {
@@ -494,7 +566,7 @@
                 // Stagger knuckles - middle finger knuckle slightly higher
                 const yOffset = [0, 0.1, 0.05, -0.05][i];
                 knucklePositions[i].set(
-                    avgX + xOffset,
+                    avgX_off + xOffset,
                     knuckleY + yOffset,
                     knuckleZ
                 );
@@ -504,7 +576,7 @@
             for (let i = 0; i < 4; i++) {
                 if (!fingerTargets[i]) {
                     fingerTargets[i] = new THREE.Vector3(
-                        avgX + fingerConfigs[i].offset.x,
+                        avgX_off + fingerConfigs[i].offset.x,
                         0.8,  // Above fretboard
                         avgZ
                     );
