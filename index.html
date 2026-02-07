@@ -1172,13 +1172,9 @@
                         ${tags.map(t => `<span style="border:1px solid #555; padding:2px 6px; border-radius:4px; margin-right:4px;">${t}</span>`).join('')}
                     </div>`;
                 }
-
-                chord.forEach(note => {
-                    html += `<div class="finger-row">
-                        <span class="finger-name">${fingerNames[note.finger]}:</span>
-                        <span class="finger-pos">Str ${stringNames[note.string-1]}, Fr ${note.fret}</span>
-                    </div>`;
-                });
+                
+                // (Finger list removed as requested)
+                
                 document.getElementById('finger-list').innerHTML = html;
 
                 // Ascii board
