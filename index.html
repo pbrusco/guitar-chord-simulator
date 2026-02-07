@@ -1488,8 +1488,15 @@
                     // Filter Logic
                     if (filter) {
                         const chord = chords[key];
-                        const keyMatch = key.toLowerCase().includes(filter);
-                        const tagMatch = chord.tags && chord.tags.some(t => t.toLowerCase().includes(filter));
+                        // Translate name and tags for search
+                        const translatedName = TranslationManager.translateChordName(key).toLowerCase();
+                        const keyMatch = key.toLowerCase().includes(filter) || translatedName.includes(filter);
+                        
+                        const tagMatch = chord.tags && chord.tags.some(t => {
+                            const translatedTag = TranslationManager.t(t).toLowerCase();
+                            return t.toLowerCase().includes(filter) || translatedTag.includes(filter);
+                        });
+
                         if (!keyMatch && !tagMatch) return;
                     }
 
