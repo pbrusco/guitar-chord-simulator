@@ -861,6 +861,7 @@ const uiManager = {
     selectedSelectorRoot: 'C',
     selectedSelectorType: 'Major',
     selectedSelectorCategory: 'All', // New State
+    selectedSelectorInversion: 'All', // New Inv State
     beginnerMode: true,
 
     toggleBeginnerMode() {
@@ -948,7 +949,21 @@ const uiManager = {
             else if(chordData.tags.includes('Barre')) this.selectedSelectorCategory = 'Barre';
             else if(chordData.tags.includes('Triad')) this.selectedSelectorCategory = 'Triad';
             else if(chordData.tags.includes('Tetrad')) this.selectedSelectorCategory = 'Tetrad';
-            else this.selectedSelectorCategory = 'All';
+            
+            // Sync Inversion if visible
+            if (this.selectedSelectorCategory === 'Triad' || this.selectedSelectorCategory === 'Tetrad') {
+                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                let foundInv = 'All';
+                for (const t of chordData.tags) {
+                    if (invTagList.includes(t)) {
+                        foundInv = t;
+                        break;
+                    }
+                }
+                this.selectedSelectorInversion = foundInv;
+            } else {
+                this.selectedSelectorInversion = 'All';
+            }
         }
         
         this.renderSelectors();
@@ -991,8 +1006,14 @@ const uiManager = {
     },
     selectSelectorCategory(cat) {
         this.selectedSelectorCategory = cat;
+        // Reset Inversion when category changes
+        this.selectedSelectorInversion = 'All';
         this.renderSelectors();
         // Maybe try to select the first chord in this category?
+    },
+    selectSelectorInversion(inv) {
+        this.selectedSelectorInversion = inv;
+        this.renderSelectors();
     },
 
     tryAutoSelectChord() {
@@ -1000,6 +1021,7 @@ const uiManager = {
         const root = this.selectedSelectorRoot;
         const type = this.selectedSelectorType;
         const cat = this.selectedSelectorCategory;
+        const inv = this.selectedSelectorInversion;
 
         if(!root || !type) return;
 
@@ -1041,6 +1063,11 @@ const uiManager = {
             } else if (cat !== 'All') {
                 const cTags = LibraryManager.data.chords[k].tags || [];
                 if (!cTags.includes(cat)) return false;
+                
+                // Check Inversion (only if category matched and is Triad/Tetrad, though currently UI enforces logic)
+                if (inv !== 'All' && (cat === 'Triad' || cat === 'Tetrad')) {
+                    if (!cTags.includes(inv)) return false;
+                }
             }
 
             return true;
@@ -1258,14 +1285,72 @@ const uiManager = {
             });
         }
 
-        // Filter keys by Category
-        const finalKeys = typeKeys.filter(k => {
+        // Filter keys by Category (Step 3)
+        const catKeys = typeKeys.filter(k => {
             if(validCat === 'All') return true;
             const data = chords[k];
             return data.tags && data.tags.includes(validCat);
         });
 
-        // 4. VARIATIONS
+        // 4. INVERSIONS (Sub-Level for Triads/Tetrads)
+        const invContainer = document.getElementById('inversion-selector');
+        let finalKeys = catKeys;
+
+        if (invContainer) {
+            if (!this.beginnerMode && (validCat === 'Triad' || validCat === 'Tetrad')) {
+                invContainer.style.display = 'flex';
+                
+                // Collect specific inversion tags from the currently filtered keys
+                const inversions = new Set(['All']);
+                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                
+                catKeys.forEach(k => {
+                    const data = chords[k];
+                    if(data.tags) {
+                        data.tags.forEach(t => {
+                            if(invTagList.includes(t)) inversions.add(t);
+                        });
+                    }
+                });
+
+                let validInv = this.selectedSelectorInversion || 'All';
+                if (!inversions.has(validInv)) validInv = 'All';
+                this.selectedSelectorInversion = validInv;
+
+                invContainer.innerHTML = '';
+                // Sort order: All, Root-Pos, 1st-Inv, 2nd-Inv, Drop2, Drop3
+                const invOrder = ['All', 'Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                const sortedInvs = Array.from(inversions).sort((a,b) => {
+                    let ia = invOrder.indexOf(a);
+                    let ib = invOrder.indexOf(b);
+                    if(ia === -1) ia = 99; 
+                    if(ib === -1) ib = 99;
+                    return ia - ib;
+                });
+
+                sortedInvs.forEach(inv => {
+                    const btn = document.createElement('button');
+                    btn.className = `selector-btn ${inv === validInv ? 'selected' : ''}`;
+                    const label = TranslationManager.t ? (TranslationManager.t(inv) || inv) : inv;
+                    btn.textContent = label;
+                    btn.onclick = () => this.selectSelectorInversion(inv);
+                    invContainer.appendChild(btn);
+                });
+
+                // Filter final keys by Inversion
+                if (validInv !== 'All') {
+                    finalKeys = catKeys.filter(k => {
+                        const data = chords[k];
+                        return data.tags && data.tags.includes(validInv);
+                    });
+                }
+
+            } else {
+                invContainer.style.display = 'none';
+            }
+        }
+
+        // 5. VARIATIONS
         const varContainer = document.getElementById('variation-selector');
         if(varContainer) {
             // Always show if there is at least one key, so user sees what is selected.
