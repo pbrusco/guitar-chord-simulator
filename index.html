@@ -428,25 +428,31 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+        // Import Chord Libraries
+        import { OPEN_CHORDS } from './js/chords/open.js';
+        import { BARRE_CHORDS } from './js/chords/barre.js';
+        import { TRIAD_CHORDS } from './js/chords/triads.js';
+        import { QUADRIAD_CHORDS } from './js/chords/quadriads.js';
+
         // ==========================================
         // DATA & LIBRARY MANAGER
         // ==========================================
         const DEFAULTS = {
             chords: {
-                // MAJOR
-                'C': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 } ], tags: ['Major', 'Open'] },
-                'A': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 2, finger: 2 } ], tags: ['Major', 'Open'] },
-                'G': { positions: [ { string: 5, fret: 2, finger: 0 }, { string: 6, fret: 3, finger: 1 }, { string: 1, fret: 3, finger: 2 }, { string: 2, fret: 3, finger: 3 } ], tags: ['Major', 'Open'] },
-                'E': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 4, fret: 2, finger: 2 } ], tags: ['Major', 'Open'] },
-                'D': { positions: [ { string: 3, fret: 2, finger: 0 }, { string: 1, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Major', 'Open'] },
+                ...OPEN_CHORDS,
+                ...BARRE_CHORDS,
+                ...TRIAD_CHORDS,
+                ...QUADRIAD_CHORDS
             },
             offsets: {
-                // Offsets defaults - many just use 0, but good to have keys
-                'C': { x: 0, y: 0 },
-                'A': { x: -1, y: 0.4 },
-                'G': { x: -0.3, y: 1 },
-                'E': { x: -0.1, y: 0.8 },
-                'D': { x: -1, y: 0 },
+                // Pre-populate known offsets if needed, or leave generic
+                'C Open': { x: 0, y: 0 },
+                'A Open': { x: -1, y: 0.4 },
+                'G Open': { x: -0.3, y: 1 },
+                'E Open': { x: -0.1, y: 0.8 },
+                'D Open': { x: -1, y: 0 },
+                'F (Barre 1fr)': { x: -0.2, y: -0.2 },
+                'Bm (Barre 2fr)': { x: -0.2, y: -0.2 }
             }
         };
 
@@ -454,21 +460,9 @@
             data: { chords: {}, offsets: {} },
 
             async init() {
-                // Try to load from "defaults.yaml" first
-                try {
-                    const response = await fetch('defaults.yaml');
-                    if(response.ok) {
-                        const text = await response.text();
-                        const parsed = jsyaml.load(text);
-                        this.loadData(parsed);
-                        console.log("Loaded defaults.yaml");
-                    } else {
-                        throw new Error("defaults.yaml not found");
-                    }
-                } catch(err) {
-                    console.warn("Could not load defaults.yaml, checking local storage...", err);
-                    this.loadFromStorage();
-                }
+                // Initialize directly from Storage or Defaults
+                // No external fetch for defaults.yaml
+                this.loadFromStorage();
             },
 
             loadFromStorage() {
