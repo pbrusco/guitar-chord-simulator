@@ -1164,6 +1164,61 @@
         // ==========================================
         // FINGER CLASS
         // ==========================================
+        // ==========================================
+        // TEXTURE GENERATOR
+        // ==========================================
+        function createSkinTexture() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Base Skin Tone
+            ctx.fillStyle = '#f5c9a6';
+            ctx.fillRect(0,0,size,size);
+            
+            // 1. Noise / Pores
+            for(let i=0; i<80000; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                // Subtle reddish/brown dots
+                ctx.fillStyle = `rgba(160, 82, 45, ${Math.random() * 0.08})`; 
+                ctx.fillRect(x,y,2,2);
+            }
+            
+            // 2. Subsurface scattering simulation (blotches of red)
+            for(let i=0; i<50; i++) {
+                 const x = Math.random() * size;
+                 const y = Math.random() * size;
+                 const r = 20 + Math.random() * 60;
+                 const grd = ctx.createRadialGradient(x,y,0, x,y,r);
+                 grd.addColorStop(0, "rgba(255, 100, 100, 0.04)");
+                 grd.addColorStop(1, "rgba(255, 100, 100, 0)");
+                 ctx.fillStyle = grd;
+                 ctx.beginPath();
+                 ctx.arc(x,y,r,0,Math.PI*2);
+                 ctx.fill();
+            }
+
+            // 3. Highlights (Veins/Structure hint)
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.lineWidth = 20;
+            ctx.beginPath();
+            ctx.moveTo(0, size/2);
+            ctx.bezierCurveTo(size/3, size/3, size*2/3, size*2/3, size, size/2);
+            ctx.stroke();
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            return tex;
+        }
+
+        const SHARED_SKIN_TEX = createSkinTexture();
+
+        // ==========================================
+        // FINGER CLASS
+        // ==========================================
         class Finger {
             constructor(color, offset, lengths, scene) {
                 this.lengths = lengths;
@@ -1172,39 +1227,48 @@
                 this.targetPos = new THREE.Vector3();
                 this.isBarre = false;
 
-                // Materials
-                const skinMat = new THREE.MeshStandardMaterial({ 
-                    color: 0xf5c9a6, 
-                    roughness: 0.5,
-                    metalness: 0.1
+                // Materials - UPGRADED for realism
+                // Physical material allows for Sheen (peach fuzz) and better light interaction
+                const skinMat = new THREE.MeshPhysicalMaterial({ 
+                    map: SHARED_SKIN_TEX,
+                    color: 0xffffff, // Tint is in texture
+                    roughness: 0.65, 
+                    metalness: 0.0,
+                    reflectivity: 0.5,
+                    sheen: 0.5,
+                    sheenColor: 0xffddcc,
+                    sheenRoughness: 0.5,
+                    side: THREE.FrontSide
                 });
                 
-                // Tip/Nail Color
-                const tipMat = new THREE.MeshStandardMaterial({ 
+                // Tip/Nail Color - slightly shinier, less skin-like
+                const tipMat = new THREE.MeshPhysicalMaterial({ 
                     color: color, 
-                    roughness: 0.5,
-                    metalness: 0.1
+                    roughness: 0.3,
+                    metalness: 0.1,
+                    clearcoat: 0.4,
+                    clearcoatRoughness: 0.2
                 });
 
-                const jointMat = new THREE.MeshStandardMaterial({
-                    color: 0xbaa085, // skin tone for joints to contrast
-                    roughness: 0.6
-                });
+                // Joints - use skin mat now for seamless look
+                const jointMat = skinMat;
 
                 // Segments
                 lengths.forEach((l) => {
                      // Tapered Cylinder for realism
-                    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 8), skinMat);
+                    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 16), skinMat); // Higher radial segments for smoothness
                     seg.castShadow = true;
+                    // Try to generate unique UVs for texture mapping if possible, 
+                    // cylinder has them by default (wrapping around)
                     scene.add(seg);
                     this.segments.push(seg);
                 });
 
                 // Joints
                 for(let i=0; i<4; i++) {
-                    // Tip gets the special color, others get skin color (same as segments)
                     const m = (i === 3) ? tipMat : skinMat;
-                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), m);
+                    // Slightly higher poly sphere for smoothness
+                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 24), m); 
                     joint.castShadow = true;
                     scene.add(joint);
                     this.joints.push(joint);
