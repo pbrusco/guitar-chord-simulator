@@ -1182,11 +1182,35 @@
                 document.getElementById('finger-list').innerHTML = html;
 
                 // Ascii board
-                let board = '<pre>     Fret: 0   1   2   3   4\n          nut ─┬───┬───┬───┬──\n';
+                // 1. Calculate fret range
+                const frets = chord.map(c => c.fret).filter(f => f > 0);
+                const minFret = frets.length ? Math.min(...frets) : 1;
+                const maxFret = frets.length ? Math.max(...frets) : 1;
+                
+                // If max fret > 4, we shift the window to start at minFret
+                let startFret = 1;
+                if (maxFret > 4) startFret = minFret;
+
+                // 2. Build Header
+                const numCols = 5; 
+                let board = '<pre>  Frm:  ';
+                for(let i=0; i<numCols; i++) {
+                    board += (startFret + i).toString().padEnd(4);
+                }
+                board += '\n';
+
+                // 3. Nut/Top Border
+                const label = startFret === 1 ? '  nut ' : `fr${startFret}`.padEnd(6);
+                board += label + '─' + '┬───'.repeat(numCols) + '\n';
+
                 for(let s=1; s<=6; s++) {
-                    const lbl = stringNames[s-1].padEnd(6);
-                    let line = lbl + '│';
-                    for(let f=1; f<=4; f++) {
+                    const lbl = stringNames[s-1].padEnd(1);
+                    // Check for 0 (Open) or x (Muted - assumes finding nothing means mute/open, handled same now)
+                    // Ideally we'd show 'o' or 'x' here but my data structure is sparse (only held notes).
+                    
+                    let line = `   ${lbl} │`;
+                    for(let i=0; i<numCols; i++) {
+                        const f = startFret + i;
                         const hit = chord.find(c => c.string === s && c.fret === f);
                         line += hit ? ` ${hit.finger+1} │` : '───│';
                     }
