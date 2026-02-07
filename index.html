@@ -5,21 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guitar Hand Simulator</title>
     <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: rgba(0,0,0,0.85);
+            --accent-color: #4CAF50;
+            --active-color: #2196F3;
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+        }
         body { 
             margin: 0; 
             overflow: hidden;
             font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            width: 100vw;
+            height: 100vh;
         }
-        canvas { display: block; }
+        canvas { 
+            display: block; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 0; 
+        }
+        
+        /* Main UI Panel */
         #controls {
             position: absolute;
+            z-index: 10;
             top: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.85);
-            color: white;
+            background: var(--panel-bg);
+            color: var(--text-color);
             padding: 20px;
             border-radius: 10px;
             max-width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            scrollbar-width: thin;
         }
         #controls h3 { margin: 0; font-size: 1.1em; }
         .header-row {
@@ -28,41 +52,55 @@
             align-items: center;
             margin-bottom: 15px;
         }
+        
+        /* Buttons */
+        .btn {
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 8px 12px;
+            font-size: 14px;
+            transition: background 0.2s;
+            color: white;
+        }
+        .btn:hover { opacity: 0.9; }
+        
         #toggle-btn {
             background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             line-height: 1;
+            padding: 0;
         }
         #toggle-btn:hover { background: rgba(255,255,255,0.3); }
+
         .chord-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
+            background: var(--accent-color);
+            margin: 4px;
+            font-size: 15px;
+            flex-grow: 1;
+            min-width: 60px;
         }
-        .chord-btn:hover { background: #45a049; }
-        .chord-btn.active { background: #2196F3; }
+        .chord-btn.active { background: var(--active-color); }
+        
+        #manage-btn { background: #455a64; width: 100%; margin-top: 10px; }
+
+        /* Chord Diagram & Info */
         #info {
             position: absolute;
+            z-index: 10;
             bottom: 20px;
             left: 20px;
             color: white;
             background: rgba(0,0,0,0.5);
             padding: 10px;
             border-radius: 5px;
+            pointer-events: none;
         }
         #chord-diagram {
             margin-top: 15px;
@@ -71,106 +109,184 @@
             border-radius: 8px;
             font-family: monospace;
         }
-        #chord-diagram h4 {
-            margin: 0 0 10px 0;
-            color: #4CAF50;
-        }
+        #chord-diagram h4 { margin: 0 0 10px 0; color: var(--accent-color); }
+        
         .finger-row {
             display: flex;
             justify-content: space-between;
             padding: 4px 0;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9em;
         }
-        .finger-name {
+        .string-diagram pre { margin: 10px 0 0 0; color: #ccc; font-size: 13px; }
+
+        /* Debug / Hand Position Controls */
+        #debug-controls {
+            margin-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 10px;
+        }
+        .control-row { display: flex; align-items: center; margin-bottom: 5px; }
+        .control-row label { width: 20px; color: var(--text-muted); }
+        .control-row input { flex-grow: 1; margin: 0 10px; }
+        .control-row span { width: 35px; text-align: right; font-family: monospace; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #222;
+            margin: 5% auto;
+            padding: 25px;
+            border: 1px solid #444;
+            width: 90%;
+            max-width: 500px;
+            color: white;
+            border-radius: 8px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .close {
             color: #aaa;
-        }
-        .finger-pos {
-            color: #fff;
+            float: right;
+            font-size: 28px;
             font-weight: bold;
+            cursor: pointer;
         }
-        .string-diagram {
-            margin-top: 10px;
-            font-size: 14px;
-            line-height: 1.4;
+        .close:hover { color: white; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
         }
-        .string-line {
+        .string-row { 
+            display: grid; 
+            grid-template-columns: 80px 1fr 1fr; 
+            gap: 10px; 
+            align-items: center; 
+            margin-bottom: 8px; 
+            background: rgba(255,255,255,0.05);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .string-row label { margin: 0; font-weight: bold; color: #ccc;}
+        
+        .modal-actions {
+            border-bottom: 1px solid #444;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
             display: flex;
-            align-items: center;
-        }
-        .string-label {
-            width: 30px;
-            color: #888;
-        }
-        .fret-display {
-            font-family: monospace;
-            letter-spacing: 2px;
-        }
-        .finger-marker {
-            color: #4CAF50;
-            font-weight: bold;
+            gap: 10px;
         }
     </style>
 </head>
 <body>
+
+    <!-- CONTROL PANEL -->
     <div id="controls">
         <div class="header-row">
-            <h3>🎸 Guitar Chord Simulator</h3>
-            <button id="toggle-btn" onclick="togglePanel()">−</button>
-        </div>
-        <div id="panel-content">
-        <div style="display: flex; flex-wrap: wrap;">
-            <button class="chord-btn active" onclick="setChord('C')">C Major</button>
-            <button class="chord-btn" onclick="setChord('D')">D Major</button>
-            <button class="chord-btn" onclick="setChord('G')">G Major</button>
-            <button class="chord-btn" onclick="setChord('A')">A Major</button>
-            <button class="chord-btn" onclick="setChord('E')">E Major</button>
-            <button class="chord-btn" onclick="setChord('F')">F Major</button>
-            <button class="chord-btn" onclick="setChord('Am')">A Minor</button>
-            <button class="chord-btn" onclick="setChord('Em')">E Minor</button>
-            <button class="chord-btn" onclick="setChord('Dm')">D Minor</button>
+            <h3>🎸 Hand Simulator</h3>
+            <button id="toggle-btn" onclick="togglePanel()" class="btn">−</button>
         </div>
         
-        <div id="chord-diagram">
-            <h4>📍 Finger Positions</h4>
-            <div id="finger-list"></div>
-            <div class="string-diagram">
-                <div id="fretboard-text"></div>
-            </div>
-        </div>
+        <div id="panel-content">
+            <!-- Chord Buttons Grid -->
+            <div id="chord-buttons-container" style="display: flex; flex-wrap: wrap;"></div>
+            
+            <button id="manage-btn" class="btn" onclick="openModal()">⚙️ Manage Chords Library</button>
 
-        <div id="debug-controls" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
-            <h4 style="margin: 0 0 10px 0; color: #ff9800;">🛠 Hand Position</h4>
-            
-            <div class="control-row" style="display: flex; align-items: center; margin-bottom: 5px;">
-                <label style="width: 20px; color: #aaa;">X:</label>
-                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('x', this.value)" style="flex-grow: 1;">
-                <span id="offset-x" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+            <!-- Active Chord Info -->
+            <div id="chord-diagram">
+                <h4>📍 Finger Positions</h4>
+                <div id="finger-list"></div>
+                <div class="string-diagram">
+                    <div id="fretboard-text"></div>
+                </div>
             </div>
-            
-            <div class="control-row" style="display: flex; align-items: center; margin-bottom: 5px;">
-                <label style="width: 20px; color: #aaa;">Y:</label>
-                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('y', this.value)" style="flex-grow: 1;">
-                <span id="offset-y" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
+
+            <!-- Hand Transformation Controls -->
+            <div id="debug-controls">
+                <h4 style="margin: 0 0 10px 0; color: #ff9800;">🛠 Hand Position</h4>
+                
+                <div class="control-row">
+                    <label>X:</label>
+                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('x', this.value)">
+                    <span id="offset-x">0.0</span>
+                </div>
+                <div class="control-row">
+                    <label>Y:</label>
+                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('y', this.value)">
+                    <span id="offset-y">0.0</span>
+                </div>
+                <div class="control-row">
+                    <label>Z:</label>
+                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('z', this.value)">
+                    <span id="offset-z">0.0</span>
+                </div>
+                
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button onclick="uiManager.saveCurrentOffset()" class="btn" style="background: #ff9800; flex-grow: 1; font-weight: bold;">Save Position</button>
+                    <button onclick="uiManager.resetCurrentOffset()" class="btn" style="background: #444;">↺</button>
+                </div>
             </div>
-            
-            <div class="control-row" style="display: flex; align-items: center;">
-                <label style="width: 20px; color: #aaa;">Z:</label>
-                <input type="range" min="-2" max="2" step="0.1" value="0" oninput="updateHandOffset('z', this.value)" style="flex-grow: 1;">
-                <span id="offset-z" style="width: 35px; text-align: right; font-family: monospace; font-size: 0.9em;">0.0</span>
-            </div>
-            
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button onclick="saveCurrentOffset()" style="background: #ff9800; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer; flex-grow: 1; font-weight: bold;">Save Position</button>
-                <button onclick="resetCurrentOffset()" style="background: #444; border: none; padding: 8px; color: white; border-radius: 4px; cursor: pointer;">↺</button>
-            </div>
-        </div>
         </div>
     </div>
+
+    <!-- INFO OVERLAY -->
     <div id="info">
-        Drag to rotate | Scroll to zoom | Current chord: <span id="current-chord">C Major</span>
+        Drag to rotate | Scroll to zoom | Current: <span id="current-chord-display">C</span>
         <div id="camera-info" style="font-size: 0.8em; opacity: 0.7; margin-top: 5px; font-family: monospace;"></div>
     </div>
 
+    <!-- MODAL -->
+    <div id="chordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Manage Library</h2>
+            
+            <div class="modal-actions">
+                <button class="btn" onclick="libraryManager.exportLibrary()" style="background: #555;">💾 Export JSON</button>
+                <button class="btn" onclick="document.getElementById('importFile').click()" style="background: #555;">📂 Import JSON</button>
+                <button class="btn" onclick="libraryManager.resetLibrary()" style="background: #d32f2f; margin-left: auto;">Reset Defaults</button>
+                <input type="file" id="importFile" style="display:none" onchange="libraryManager.importLibrary(this)">
+            </div>
+
+            <h3 style="color: var(--accent-color);">Editor</h3>
+            <div class="form-group">
+                <label>Chord Name</label>
+                <input type="text" id="edit-name" placeholder="e.g. Bm7">
+            </div>
+
+            <div id="string-inputs">
+                <!-- Generated by JS -->
+            </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn" onclick="saveChordFromForm()" style="background: var(--accent-color); flex-grow: 1; padding: 12px;">Save Chord</button>
+                <button class="btn" id="delete-chord-btn" onclick="deleteChord()" style="background: #d32f2f; display:none;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- THREE.JS IMPORT MAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <script type="importmap">
     {
         "imports": {
@@ -180,671 +296,732 @@
     }
     </script>
 
+    <!-- APP SCRIPT -->
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // --- SCENE SETUP ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
-
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // Position camera - User selected angle (Audience side, very high)
-        camera.position.set(-1.7, 7.2, 2.7);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        // Look at the fretboard area where chords are played
-        controls.target.set(-2.4, 0.7, -0.3);
-
-        // Update camera position display
-        controls.addEventListener('change', updateCameraInfo);
-        
-        function updateCameraInfo() {
-            const p = camera.position;
-            const t = controls.target;
-            const info = document.getElementById('camera-info');
-            if (info) {
-                // Determine rough position description for ease of use
-                let desc = "";
-                if (p.x > 0 && p.z < 0) desc = "(Player Perspective)";
-                else if (p.z > 0) desc = "(Audience Perspective)";
+        // ==========================================
+        // DATA & LIBRARY MANAGER
+        // ==========================================
+        const DEFAULTS = {
+            chords: {
+                // MAJOR
+                'C': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 } ], tags: ['Major', 'Open'] },
+                'A': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 2, finger: 2 } ], tags: ['Major', 'Open'] },
+                'G': { positions: [ { string: 5, fret: 2, finger: 0 }, { string: 6, fret: 3, finger: 1 }, { string: 1, fret: 3, finger: 2 }, { string: 2, fret: 3, finger: 3 } ], tags: ['Major', 'Open'] },
+                'E': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 4, fret: 2, finger: 2 } ], tags: ['Major', 'Open'] },
+                'D': { positions: [ { string: 3, fret: 2, finger: 0 }, { string: 1, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Major', 'Open'] },
                 
-                info.innerHTML = `Cam: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}<br>Tgt: ${t.x.toFixed(1)}, ${t.y.toFixed(1)}, ${t.z.toFixed(1)} ${desc}`;
+                // MINOR
+                'Am': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 3, fret: 2, finger: 2 } ], tags: ['Minor', 'Open'] },
+                'Em': { positions: [ { string: 5, fret: 2, finger: 1 }, { string: 4, fret: 2, finger: 2 } ], tags: ['Minor', 'Open'] },
+                'Dm': { positions: [ { string: 1, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Minor', 'Open'] },
+
+                // BARRE CHORDS (E-Shape / A-Shape roots)
+                'F': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 }, { string: 4, fret: 3, finger: 3 } ], tags: ['Major', 'Barre'] }, // Simplified F
+                'Bm': { positions: [ { string: 5, fret: 2, finger: 0 }, { string: 2, fret: 3, finger: 1 }, { string: 4, fret: 4, finger: 2 }, { string: 3, fret: 4, finger: 3 } ], tags: ['Minor', 'Barre'] },
+                
+                // 7th
+                'C7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 }, { string: 3, fret: 3, finger: 3 } ], tags: ['Dominant 7th', 'Open'] },
+                'A7': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 2, fret: 2, finger: 1 } ], tags: ['Dominant 7th', 'Open'] },
+                'E7': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 } ], tags: ['Dominant 7th', 'Open'] },
+                'G7': { positions: [ { string: 1, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 6, fret: 3, finger: 2 } ], tags: ['Dominant 7th', 'Open'] },
+                'D7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 1, fret: 2, finger: 2 } ], tags: ['Dominant 7th', 'Open'] },
+                'B7': { positions: [ { string: 4, fret: 1, finger: 0 }, { string: 5, fret: 2, finger: 1 }, { string: 3, fret: 2, finger: 2 }, { string: 1, fret: 2, finger: 3 } ], tags: ['Dominant 7th', 'Open'] },
+
+                // MAJOR 7th
+                'Cmaj7': { positions: [ { string: 4, fret: 2, finger: 1 }, { string: 5, fret: 3, finger: 2 } ], tags: ['Major 7th', 'Open'] },
+                'Amaj7': { positions: [ { string: 3, fret: 1, finger: 0 }, { string: 4, fret: 2, finger: 1 }, { string: 2, fret: 2, finger: 2 } ], tags: ['Major 7th', 'Open'] },
+                'Fmaj7': { positions: [ { string: 2, fret: 1, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 4, fret: 3, finger: 2 } ], tags: ['Major 7th', 'Open'] },
+
+                // SUSPENDED
+                'Dsus4': { positions: [ { string: 3, fret: 2, finger: 0 }, { string: 2, fret: 3, finger: 2 }, { string: 1, fret: 3, finger: 3 } ], tags: ['Suspended', 'Open'] },
+                'Asus4': { positions: [ { string: 4, fret: 2, finger: 0 }, { string: 3, fret: 2, finger: 1 }, { string: 2, fret: 3, finger: 2 } ], tags: ['Suspended', 'Open'] },
+
+            },
+            offsets: {
+                // Offsets defaults - many just use 0, but good to have keys
+                'C': { x: 0, y: 0, z: 0 },
+                'A': { x: -1, y: 0.4, z: 0 },
+                'G': { x: -0.3, y: 1, z: 0.2 },
+                'E': { x: -0.1, y: 0.8, z: 0 },
+                'D': { x: -1, y: 0, z: 0 },
+                'F': { x: 0, y: 0, z: 0 },
+                'Am': { x: 0, y: 0, z: 0 },
+                'Em': { x: 0, y: 0, z: 0 },
+                'Dm': { x: 0, y: 0, z: 0 },
+                'Bm': { x: -1, y: 0, z: 0 },
+                'C7': { x: 0, y: 0, z: 0 },
+                'A7': { x: -1, y: 0.4, z: 0 },
+                'E7': { x: -0.1, y: 0.8, z: 0 },
+                'G7': { x: -0.3, y: 1, z: 0.2 },
+                'D7': { x: -1, y: 0, z: 0 },
+                'B7': { x: 0, y: 0, z: 0 },
+                'Cmaj7': { x: 0, y: 0, z: 0 },
+                'Amaj7': { x: -1, y: 0.4, z: 0 },
+                'Fmaj7': { x: 0, y: 0, z: 0 },
+                'Dsus4': { x: -1, y: 0, z: 0 },
+                'Asus4': { x: -1, y: 0.4, z: 0 },
             }
-        }
-        updateCameraInfo(); // Initial update
+        };
 
-        // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
+        const LibraryManager = {
+            data: { chords: {}, offsets: {} },
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 10, 5);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
+            init() {
+                const saved = localStorage.getItem('guitarChordLibrary');
+                if (saved) {
+                    try {
+                        let parsed = JSON.parse(saved);
+                        
+                        // MIGRATION / VALIDATION check
+                        let dirty = false;
+                        if(parsed.chords) {
+                            for(let k in parsed.chords) {
+                                if(Array.isArray(parsed.chords[k])) {
+                                    parsed.chords[k] = { positions: parsed.chords[k], tags: [] };
+                                    dirty = true;
+                                }
+                            }
+                        }
 
-        // --- GUITAR NECK ---
-        const neckGroup = new THREE.Group();
-        scene.add(neckGroup);
+                        this.data = parsed;
+                        // Structure check
+                        if(!this.data.chords) this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
+                        if(!this.data.offsets) this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
+                        
+                        if(dirty) this.save();
 
-        // Fretboard wood
-        const fretboardGeom = new THREE.BoxGeometry(14, 0.3, 2);
-        const fretboardMat = new THREE.MeshStandardMaterial({ color: 0x3d2314 });
-        const fretboard = new THREE.Mesh(fretboardGeom, fretboardMat);
-        fretboard.receiveShadow = true;
-        neckGroup.add(fretboard);
+                    } catch(e) { console.error("Corrupt library", e); this.resetLibrary(); }
+                } else {
+                    this.resetDataToDefaults();
+                }
+            },
 
-        // Frets (metal bars)
-        const fretPositions = [];
-        const scaleLength = 12;
-        const nutX = -6;
-        
-        for (let i = 0; i <= 12; i++) {
-            const dist = scaleLength - (scaleLength / Math.pow(2, i / 12));
-            const fretX = nutX + dist;
-            fretPositions.push(fretX);
-            
-            const fretGeom = new THREE.BoxGeometry(0.08, 0.1, 1.8);
-            const fretMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2 });
-            const fret = new THREE.Mesh(fretGeom, fretMat);
-            fret.position.set(fretX, 0.2, 0);
-            neckGroup.add(fret);
-            
-            // Fret markers
-            if ([3, 5, 7, 9, 12].includes(i)) {
-                const dotGeom = new THREE.CircleGeometry(0.1, 16);
-                const dotMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-                const dot = new THREE.Mesh(dotGeom, dotMat);
-                dot.rotation.x = -Math.PI / 2;
-                dot.position.set(fretX - 0.3, 0.16, 0);
-                neckGroup.add(dot);
+            resetDataToDefaults() {
+                this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
+                this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
+            },
+
+            save() {
+                localStorage.setItem('guitarChordLibrary', JSON.stringify(this.data));
+                uiManager.renderChordButtons();
+            },
+
+            resetLibrary() {
+                if(confirm("Reset entire library to defaults?")) {
+                    localStorage.removeItem('guitarChordLibrary');
+                    localStorage.removeItem('guitarHandOffsets');
+                    this.resetDataToDefaults();
+                    this.save();
+                    window.location.reload(); 
+                }
+            },
+
+            exportLibrary() {
+                const yamlStr = jsyaml.dump(this.data, { indent: 2, lineWidth: -1 });
+                const blob = new Blob([yamlStr], {type: "text/yaml;charset=utf-8"});
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = "guitar_chords.yaml";
+                anchor.click();
+            },
+
+            importLibrary(input) {
+                const file = input.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = jsyaml.load(e.target.result);
+                        if (imported && imported.chords && imported.offsets) {
+                            
+                            // Validate Structure
+                            for(let k in imported.chords) {
+                                // Fix legacy imports if any
+                                if(Array.isArray(imported.chords[k])) {
+                                    imported.chords[k] = { positions: imported.chords[k], tags: [] };
+                                }
+                            }
+
+                            this.data = imported;
+                            this.save();
+                            alert("Library imported successfully!");
+                            closeModal();
+                            GuitarApp.setChord(Object.keys(this.data.chords)[0]);
+                        } else { alert("Invalid file structure"); }
+                    } catch(err) { alert("Invalid YAML file: " + err); }
+                };
+                reader.readAsText(file);
             }
-        }
+        };
 
-        // Strings
-        const stringColors = [0xe8e8e8, 0xe0e0e0, 0xd8d8d8, 0xb8b8b8, 0xa8a8a8, 0x989898];
-        const strings = [];
-        for (let i = 0; i < 6; i++) {
-            const thickness = 0.015 + i * 0.005;
-            const stringGeom = new THREE.CylinderGeometry(thickness, thickness, 13, 8);
-            const stringMat = new THREE.MeshStandardMaterial({ color: stringColors[i], metalness: 0.9, roughness: 0.3 });
-            const string = new THREE.Mesh(stringGeom, stringMat);
-            string.rotation.z = Math.PI / 2;
-            const yPos = 0.7 - i * 0.28;
-            string.position.set(0, 0.35, yPos);
-            neckGroup.add(string);
-            strings.push({ mesh: string, y: yPos });
-        }
+        // ==========================================
+        // 3D SCENE & ENGINE
+        // ==========================================
+        const GuitarApp = {
+            scene: null, camera: null, renderer: null, controls: null,
+            neckGroup: null, handGroup: null, markerGroup: null,
+            fingers: [], knucklePositions: [],
+            currentChordName: null,
+            handOffset: new THREE.Vector3(),
+            palmPosition: new THREE.Vector3(-4, -1, 1.5), // Base Palm Pos
+            fingerTargets: [null, null, null, null],
 
-        // --- HAND SYSTEM ---
-        // Just fingers - clean and functional
-        
-        const handGroup = new THREE.Group();
-        scene.add(handGroup);
+            // Configs
+            strings: [],
+            fretPositions: [], 
+            stringColors: [0xe8e8e8, 0xe0e0e0, 0xd8d8d8, 0xb8b8b8, 0xa8a8a8, 0x989898],
+            fingerColors: [0x00ffff, 0xffff00, 0xff8800, 0xff88ff],
+            skinTones: [0xf5c9a6, 0xf2c4a0, 0xf0c19a, 0xeebb94],
+            fingerConfigs: [
+                { offset: new THREE.Vector3(-0.35, 0, 0), lengths: [0.5, 0.4, 0.3] },   // Index
+                { offset: new THREE.Vector3(-0.10, 0, 0), lengths: [0.58, 0.45, 0.32] },  // Middle
+                { offset: new THREE.Vector3(0.15, 0, 0), lengths: [0.54, 0.42, 0.3] },   // Ring
+                { offset: new THREE.Vector3(0.40, 0, 0), lengths: [0.44, 0.35, 0.26] }   // Pinky
+            ],
 
-        // Marker group for indicating finger positions on fretboard
-        const markerGroup = new THREE.Group();
-        scene.add(markerGroup);
+            init() {
+                // Setup Three.js Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a2e);
 
-        // Placeholder groups (kept for compatibility but empty)
-        const palmGroup = new THREE.Group();
-        handGroup.add(palmGroup);
-        
-        const thumbGroup = new THREE.Group();
-        thumbGroup.visible = false; // Hide thumb - looks weird without palm
-        scene.add(thumbGroup);
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(-1.7, 7.2, 2.7);
 
-        // Finger colors for visualization
-        const fingerColors = [0x00ffff, 0xffff00, 0xff8800, 0xff88ff]; // Cyan, Yellow, Orange, Pink
-        const fingerNames = ['Index', 'Middle', 'Ring', 'Pinky'];
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                document.body.appendChild(this.renderer.domElement);
 
-        // Finger class
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.target.set(-2.4, 0.7, -0.3);
+                this.controls.addEventListener('change', () => this.updateCameraInfo());
+
+                this.addLights();
+                this.buildNeck();
+                this.buildHand();
+                
+                this.updateCameraInfo();
+                this.animate();
+
+                // Listeners
+                window.addEventListener('resize', () => this.onResize());
+            },
+
+            addLights() {
+                const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambient);
+                const dir = new THREE.DirectionalLight(0xffffff, 1);
+                dir.position.set(5, 10, 5);
+                dir.castShadow = true;
+                this.scene.add(dir);
+            },
+
+            buildNeck() {
+                this.neckGroup = new THREE.Group();
+                this.scene.add(this.neckGroup);
+
+                // Fretboard
+                const board = new THREE.Mesh(
+                    new THREE.BoxGeometry(14, 0.3, 2),
+                    new THREE.MeshStandardMaterial({ color: 0x3d2314 })
+                );
+                board.receiveShadow = true;
+                this.neckGroup.add(board);
+
+                // Frets
+                const scaleLength = 12;
+                const nutX = -6;
+                for (let i = 0; i <= 12; i++) {
+                    const dist = scaleLength - (scaleLength / Math.pow(2, i / 12));
+                    const fretX = nutX + dist;
+                    this.fretPositions.push(fretX);
+                    
+                    const fret = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.08, 0.1, 1.8),
+                        new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2 })
+                    );
+                    fret.position.set(fretX, 0.2, 0);
+                    this.neckGroup.add(fret);
+
+                    if ([3, 5, 7, 9, 12].includes(i)) {
+                        const dot = new THREE.Mesh(
+                            new THREE.CircleGeometry(0.1, 16),
+                            new THREE.MeshStandardMaterial({ color: 0xffffff })
+                        );
+                        dot.rotation.x = -Math.PI / 2;
+                        dot.position.set(fretX - 0.3, 0.16, 0);
+                        this.neckGroup.add(dot);
+                    }
+                }
+
+                // Strings
+                for (let i = 0; i < 6; i++) {
+                    const thickness = 0.015 + i * 0.005;
+                    const yPos = 0.7 - i * 0.28;
+                    const strMesh = new THREE.Mesh(
+                        new THREE.CylinderGeometry(thickness, thickness, 13, 8),
+                        new THREE.MeshStandardMaterial({ color: this.stringColors[i], metalness: 0.9, roughness: 0.3 })
+                    );
+                    strMesh.rotation.z = Math.PI / 2;
+                    strMesh.position.set(0, 0.35, yPos);
+                    this.neckGroup.add(strMesh);
+                    this.strings.push({ mesh: strMesh, y: yPos });
+                }
+            },
+
+            buildHand() {
+                this.handGroup = new THREE.Group();
+                this.scene.add(this.handGroup);
+                
+                this.markerGroup = new THREE.Group();
+                this.scene.add(this.markerGroup);
+
+                // Initialize Fingers
+                for (let i = 0; i < 4; i++) {
+                    const fConfig = this.fingerConfigs[i];
+                    const f = new Finger(this.skinTones[i], fConfig.offset, fConfig.lengths, this.scene);
+                    this.fingers.push(f);
+                    this.knucklePositions.push(new THREE.Vector3());
+                }
+            },
+
+            getNotePosition(stringIdx, fret) {
+                // stringIdx 1=e (high) to 6=E (low)
+                // Array index is inverted: strings[0] is high e
+                const idx = 6 - stringIdx; 
+                if(!this.strings[idx]) return new THREE.Vector3();
+                
+                const y = this.strings[idx].y;
+                let x;
+                if (fret === 0) x = this.fretPositions[0] - 0.5;
+                else x = (this.fretPositions[fret] + this.fretPositions[fret - 1]) / 2;
+                
+                return new THREE.Vector3(x, 0.5, y);
+            },
+
+            setChord(name) {
+                if (!LibraryManager.data.chords[name]) return;
+                
+                // 1. Update State
+                // Apply offsets
+                const offset = LibraryManager.data.offsets[name] || { x: 0, y: 0, z: 0 };
+                this.handOffset.set(offset.x, offset.y, offset.z);
+                this.currentChordName = name;
+                uiManager.updateUIForChord(name, offset);
+
+                // 2. Setup Targets
+                this.fingerTargets = [null, null, null, null];
+                this.markerGroup.clear();
+                
+                const chordObj = LibraryManager.data.chords[name];
+                const chordNotes = chordObj.positions || chordObj; // Fallback for old data if any
+                let avgX = 0, avgZ = 0, count = 0;
+
+                chordNotes.forEach(note => {
+                    const pos = this.getNotePosition(note.string, note.fret);
+                    this.fingerTargets[note.finger] = pos;
+                    
+                    // Visual Marker
+                    if (note.fret > 0) {
+                        const m = new THREE.Mesh(
+                            new THREE.CircleGeometry(0.12, 16),
+                            new THREE.MeshBasicMaterial({ color: this.fingerColors[note.finger], transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+                        );
+                        m.rotation.x = -Math.PI / 2;
+                        m.position.set(pos.x, 0.16, pos.z);
+                        this.markerGroup.add(m);
+
+                        // Ring
+                        const r = new THREE.Mesh(
+                            new THREE.RingGeometry(0.14, 0.17, 16),
+                            new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+                        );
+                        r.rotation.x = -Math.PI / 2;
+                        r.position.set(pos.x, 0.162, pos.z);
+                        this.markerGroup.add(r);
+                    }
+                    avgX += pos.x;
+                    avgZ += pos.z;
+                    count++;
+                });
+
+                if (count > 0) { avgX /= count; avgZ /= count; }
+
+                // 3. Position Hand Base
+                const baseX = avgX + this.handOffset.x;
+                const knuckleY = -0.4 + this.handOffset.y;
+                const knuckleZ = avgZ - 1.2 + this.handOffset.z;
+
+                for (let i = 0; i < 4; i++) {
+                    const config = this.fingerConfigs[i];
+                    const yStagger = [0, 0.08, 0.06, -0.04][i];
+                    const zStagger = i * 0.05;
+                    this.knucklePositions[i].set(
+                        baseX + config.offset.x,
+                        knuckleY + yStagger,
+                        knuckleZ + zStagger
+                    );
+                }
+
+                // 4. Handle Unused Fingers (Smart Parking)
+                for (let i = 0; i < 4; i++) {
+                    if (!this.fingerTargets[i]) {
+                        // Interpolate position between active neighbors
+                        let left = -1, right = -1;
+                        for(let j=i-1; j>=0; j--) if(this.fingerTargets[j]) { left = j; break; }
+                        for(let j=i+1; j<4; j++) if(this.fingerTargets[j]) { right = j; break; }
+                        
+                        let tx = baseX + this.fingerConfigs[i].offset.x;
+                        let tz = avgZ;
+                        
+                        if (left !== -1 && right !== -1) {
+                            const rangeTotal = this.fingerConfigs[right].offset.x - this.fingerConfigs[left].offset.x;
+                            const myRel = (this.fingerConfigs[i].offset.x - this.fingerConfigs[left].offset.x) / rangeTotal;
+                            tx = this.fingerTargets[left].x + (this.fingerTargets[right].x - this.fingerTargets[left].x) * myRel;
+                            tz = this.fingerTargets[left].z + (this.fingerTargets[right].z - this.fingerTargets[left].z) * myRel;
+                        } else if (left !== -1) {
+                            tx = Math.max(tx, this.fingerTargets[left].x + 0.2);
+                            tz = this.fingerTargets[left].z;
+                        } else if (right !== -1) {
+                            tx = Math.min(tx, this.fingerTargets[right].x - 0.2);
+                            tz = this.fingerTargets[right].z;
+                        }
+
+                        this.fingerTargets[i] = new THREE.Vector3(tx, 0.8, tz);
+                    }
+                }
+            },
+
+            updateCameraInfo() {
+                const info = document.getElementById('camera-info');
+                if(!info) return;
+                const p = this.camera.position;
+                info.innerHTML = `Cam: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`;
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Update IK
+                for (let i = 0; i < 4; i++) {
+                    if (this.fingerTargets[i]) {
+                        this.fingers[i].setTarget(this.fingerTargets[i]);
+                        this.fingers[i].update(this.knucklePositions[i]);
+                    }
+                }
+                
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        };
+
+        // ==========================================
+        // FINGER CLASS
+        // ==========================================
         class Finger {
-            constructor(color, knuckleOffset, lengths) {
-                this.knuckleOffset = knuckleOffset;
-                this.lengths = lengths; // [proximal, intermediate, distal]
+            constructor(color, offset, lengths, scene) {
+                this.lengths = lengths;
                 this.segments = [];
                 this.joints = [];
                 this.targetPos = new THREE.Vector3();
-
                 const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 });
 
-                // Create 3 finger segments (phalanges)
-                for (let i = 0; i < 3; i++) {
-                    const thickness = 0.11 - i * 0.02;
-                    const segGeom = new THREE.CapsuleGeometry(thickness, lengths[i], 4, 8);
-                    const seg = new THREE.Mesh(segGeom, mat);
+                // Segments
+                for(let l of lengths) {
+                    const seg = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, l, 4, 8), mat);
                     seg.castShadow = true;
-                    scene.add(seg); // Add directly to scene for easier positioning
+                    scene.add(seg);
                     this.segments.push(seg);
                 }
-
-                // Joint spheres at each knuckle
-                for (let i = 0; i < 4; i++) {
-                    const size = 0.12 - i * 0.02;
-                    const jointGeom = new THREE.SphereGeometry(size, 8, 8);
-                    const joint = new THREE.Mesh(jointGeom, mat);
+                // Joints
+                for(let i=0; i<4; i++) {
+                    const joint = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat);
                     joint.castShadow = true;
-                    scene.add(joint); // Add directly to scene
+                    scene.add(joint);
                     this.joints.push(joint);
                 }
             }
 
-            setTarget(pos) {
-                this.targetPos.copy(pos);
-            }
+            setTarget(pos) { this.targetPos.copy(pos); }
 
-            update(knuckleWorldPos) {
-                // Spline-based IK: Guarantees fingertips hit the target
-                // Uses a Quadratic Bezier curve to define the finger arc
-                
-                const p0 = knuckleWorldPos;
+            update(knucklePos) {
+                // Bezier IK
+                const p0 = knucklePos;
                 const p2 = this.targetPos;
-                
-                // Control point (P1) - creates the arc
-                // Positioned halfway between knuckle and target, but raised UP to clear fretboard
-                const p1 = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
-                
-                // Height adjustment: Ensure we clear the neck
-                // Fretboard is at Y ~= 0.35. We want to go well above that.
-                // Dynamic height based on reach distance
+                const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
                 const dist = p0.distanceTo(p2);
-                p1.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
                 
-                // Also pull P1 slightly "out" (negative Z) if reaching across neck
-                // to prevent clipping through the neck wood
-                p1.z -= 0.2; 
-                
-                // Bezier function
-                function getBezierPoint(t, p0, p1, p2) {
+                // Height arch calculation
+                mid.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
+                mid.z -= 0.2; // Pull out slightly
+
+                // Bezier Point Calc
+                const getP = (t) => {
                     const u = 1 - t;
-                    const tt = t * t;
-                    const uu = u * u;
-                    
-                    const p = new THREE.Vector3();
-                    p.x = uu * p0.x + 2 * u * t * p1.x + tt * p2.x;
-                    p.y = uu * p0.y + 2 * u * t * p1.y + tt * p2.y;
-                    p.z = uu * p0.z + 2 * u * t * p1.z + tt * p2.z;
-                    return p;
-                }
-                
-                // Calculate joint positions along the curve
-                // We divide the curve roughly based on segment length ratios
-                const totalLen = this.lengths.reduce((a,b)=>a+b, 0);
-                const t1 = this.lengths[0] / totalLen; // End of first segment
-                const t2 = (this.lengths[0] + this.lengths[1]) / totalLen; // End of second segment
-                
-                const joint1Pos = getBezierPoint(t1, p0, p1, p2);
-                const joint2Pos = getBezierPoint(t2, p0, p1, p2);
-                
-                const positions = [p0, joint1Pos, joint2Pos, p2];
-                
-                // Update visuals
-                for (let i = 0; i < 4; i++) {
-                    this.joints[i].position.copy(positions[i]);
-                }
-                
-                for (let i = 0; i < 3; i++) {
-                    const start = positions[i];
-                    const end = positions[i+1];
-                    const mid = new THREE.Vector3().lerpVectors(start, end, 0.5);
-                    const segLen = start.distanceTo(end);
-                    
-                    this.segments[i].position.copy(mid);
-                    this.segments[i].lookAt(end);
-                    this.segments[i].rotateX(Math.PI / 2);
-                    
-                    // Minor stretch/squash to ensure connectivity
-                    // Original geometry height is this.lengths[i]
-                    this.segments[i].scale.set(1, segLen / this.lengths[i], 1);
-                }
-            }
-        }
-
-        // Create fingers with offsets from palm and segment lengths
-        // Using skin tones - fingers need to be long enough to reach from knuckle to string
-        // REORDERED OFFSETS: Index starts at lowest X (left) to Pinky at highest X (right)
-        // to prevent fingers from crossing over each other when reaching for frets.
-        const fingers = [];
-        const skinTones = [0xf5c9a6, 0xf2c4a0, 0xf0c19a, 0xeebb94]; // Slight variations
-        const fingerConfigs = [
-            { offset: new THREE.Vector3(-0.35, 0, 0), lengths: [0.5, 0.4, 0.3] },   // Index - Leftmost
-            { offset: new THREE.Vector3(-0.10, 0, 0), lengths: [0.58, 0.45, 0.32] },  // Middle
-            { offset: new THREE.Vector3(0.15, 0, 0), lengths: [0.54, 0.42, 0.3] },   // Ring
-            { offset: new THREE.Vector3(0.40, 0, 0), lengths: [0.44, 0.35, 0.26] },   // Pinky - Rightmost
-        ];
-
-        for (let i = 0; i < 4; i++) {
-            const finger = new Finger(
-                skinTones[i],
-                fingerConfigs[i].offset,
-                fingerConfigs[i].lengths
-            );
-            fingers.push(finger);
-        }
-
-        // Knuckle positions will be calculated based on palm position
-        let knucklePositions = [
-            new THREE.Vector3(),
-            new THREE.Vector3(),
-            new THREE.Vector3(),
-            new THREE.Vector3()
-        ];
-
-        // --- CHORD DEFINITIONS ---
-        // Format: array of { string: 1-6, fret: 0-12, finger: 0-3 }
-        const chords = {
-            'C': [
-                { string: 2, fret: 1, finger: 0 },
-                { string: 4, fret: 2, finger: 1 },
-                { string: 5, fret: 3, finger: 2 },
-            ],
-            'D': [
-                { string: 3, fret: 2, finger: 0 },
-                { string: 1, fret: 2, finger: 1 },
-                { string: 2, fret: 3, finger: 2 },
-            ],
-            'G': [
-                { string: 5, fret: 2, finger: 0 },
-                { string: 6, fret: 3, finger: 1 },
-                { string: 1, fret: 3, finger: 2 },
-                { string: 2, fret: 3, finger: 3 },
-            ],
-            'A': [
-                { string: 4, fret: 2, finger: 0 },
-                { string: 3, fret: 2, finger: 1 },
-                { string: 2, fret: 2, finger: 2 },
-            ],
-            'E': [
-                { string: 3, fret: 1, finger: 0 },
-                { string: 5, fret: 2, finger: 1 },
-                { string: 4, fret: 2, finger: 2 },
-            ],
-            'F': [
-                { string: 2, fret: 1, finger: 0 },
-                { string: 3, fret: 2, finger: 1 },
-                { string: 5, fret: 3, finger: 2 },
-                { string: 4, fret: 3, finger: 3 }, 
-            ],
-            'Am': [
-                { string: 2, fret: 1, finger: 0 },
-                { string: 4, fret: 2, finger: 1 },
-                { string: 3, fret: 2, finger: 2 },
-            ],
-            'Em': [
-                { string: 5, fret: 2, finger: 1 },
-                { string: 4, fret: 2, finger: 2 },
-            ],
-            'Dm': [
-                { string: 1, fret: 1, finger: 0 },
-                { string: 3, fret: 2, finger: 1 },
-                { string: 2, fret: 3, finger: 2 },
-            ]
-        };
-
-        // Initial hand offsets for each chord
-        const defaultChordOffsets = {
-            'C': { x: 0, y: 0, z: 0 },
-            'D': { x: -1, y: 0, z: 0 },
-            'G': { x: -0.3, y: 1, z: 0.2 },
-            'A': { x: -1, y: 0.4, z: 0 },
-            'E': { x: -0.1, y: 0.8, z: 0 },
-            'F': { x: 0, y: 0, z: 0 },
-            'Am': { x: 0, y: 0, z: 0 },
-            'Em': { x: 0, y: 0, z: 0 },
-            'Dm': { x: 0, y: 0, z: 0 }
-        };
-        
-        // Load saved offsets from LocalStorage
-        const savedOffsets = JSON.parse(localStorage.getItem('guitarHandOffsets')) || {};
-        const chordOffsets = { ...defaultChordOffsets, ...savedOffsets };
-
-        // Save current offset to LocalStorage
-        window.saveCurrentOffset = function() {
-            if (!currentChord) return;
-            
-            // Update the master list
-            chordOffsets[currentChord] = { x: handOffset.x, y: handOffset.y, z: handOffset.z };
-            
-            // Persist to storage
-            localStorage.setItem('guitarHandOffsets', JSON.stringify(chordOffsets));
-            
-            // Visual feedback
-            const btn = document.querySelector('button[onclick="saveCurrentOffset()"]');
-            const originalText = btn.textContent;
-            btn.textContent = "Saved!";
-            btn.style.background = "#4CAF50";
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = "#ff9800";
-            }, 1000);
-        };
-
-        // Reset current offset to defaults
-        window.resetCurrentOffset = function() {
-            if (!currentChord || !defaultChordOffsets[currentChord]) return;
-            
-            // Revert checks
-            const def = defaultChordOffsets[currentChord];
-            handOffset.set(def.x, def.y, def.z);
-            chordOffsets[currentChord] = { ...def };
-            
-            // Update UI inputs
-            ['x', 'y', 'z'].forEach(axis => {
-                const selector = `input[oninput*="'${axis}'"]`;
-                const input = document.querySelector(selector);
-                if (input) input.value = handOffset[axis];
-                
-                const display = document.getElementById(`offset-${axis}`);
-                if (display) display.textContent = handOffset[axis].toFixed(1);
-            });
-            
-            // Save the revert
-            localStorage.setItem('guitarHandOffsets', JSON.stringify(chordOffsets));
-            
-            // Update view
-            setChord(currentChord);
-        };
-
-        // Get note position on fretboard
-        function getNotePosition(string, fret) {
-            const stringIdx = 6 - string; // Convert 1-6 to index
-            const y = strings[stringIdx].y;
-            
-            let x;
-            if (fret === 0) {
-                x = fretPositions[0] - 0.5;
-            } else {
-                x = (fretPositions[fret] + fretPositions[fret - 1]) / 2;
-            }
-            
-            return new THREE.Vector3(x, 0.5, y);
-        }
-
-        // Current chord state
-        let currentChord = null;
-        let fingerTargets = [null, null, null, null];
-        let palmPosition = new THREE.Vector3(-4, -1, 1.5);
-        
-        // Debug offsets
-        let handOffset = new THREE.Vector3(0, 0, 0);
-
-        window.updateHandOffset = function(axis, value) {
-            value = parseFloat(value);
-            handOffset[axis] = value;
-            document.getElementById(`offset-${axis}`).textContent = value.toFixed(1);
-            setChord(currentChord);
-        };
-
-        function setChord(chordName) {
-            // Apply preset offsets if switching chords
-            if (chordName !== currentChord) {
-                const offsets = chordOffsets[chordName] || { x: 0, y: 0, z: 0 };
-                handOffset.copy(offsets);
-                
-                // Update UI sliders and text
-                ['x', 'y', 'z'].forEach(axis => {
-                    const selector = `input[oninput*="'${axis}'"]`;
-                    const input = document.querySelector(selector);
-                    if (input) input.value = handOffset[axis];
-                    
-                    const display = document.getElementById(`offset-${axis}`);
-                    if (display) display.textContent = handOffset[axis].toFixed(1);
-                });
-            }
-
-            currentChord = chordName;
-            document.getElementById('current-chord').textContent = chordName;
-            
-            // Update button states
-            document.querySelectorAll('.chord-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.textContent.includes(chordName)) btn.classList.add('active');
-            });
-
-            // Reset targets
-            fingerTargets = [null, null, null, null];
-            
-            // Clear previous markers
-            markerGroup.clear();
-
-            // Set finger targets from chord
-            const chord = chords[chordName];
-            let avgX = 0, avgZ = 0, count = 0;
-            
-            for (const note of chord) {
-                const pos = getNotePosition(note.string, note.fret);
-                fingerTargets[note.finger] = pos;
-
-                // Add visual marker on fretboard
-                if (note.fret > 0) {
-                    const markerGeom = new THREE.CircleGeometry(0.12, 16);
-                    const markerMat = new THREE.MeshBasicMaterial({ 
-                        color: fingerColors[note.finger],
-                        side: THREE.DoubleSide,
-                        transparent: true,
-                        opacity: 0.8
-                    });
-                    const marker = new THREE.Mesh(markerGeom, markerMat);
-                    marker.rotation.x = -Math.PI / 2;
-                    // Place slightly above fretboard surface (y=0.15)
-                    marker.position.set(pos.x, 0.16, pos.z); 
-                    markerGroup.add(marker);
-                    
-                    // Add a glowing ring effect
-                    const ringGeom = new THREE.RingGeometry(0.14, 0.17, 16);
-                    const ringMat = new THREE.MeshBasicMaterial({ 
-                        color: 0xffffff,
-                        side: THREE.DoubleSide
-                    });
-                    const ring = new THREE.Mesh(ringGeom, ringMat);
-                    ring.rotation.x = -Math.PI / 2;
-                    ring.position.set(pos.x, 0.162, pos.z);
-                    markerGroup.add(ring);
-                }
-
-                avgX += pos.x;
-                avgZ += pos.z;
-                count++;
-            }
-            avgX /= count;
-            avgZ /= count;
-
-            // Position hand: knuckles BELOW the neck, on player's side
-            // Fingers reach UP, wrap over the neck edge, curl DOWN to press strings
-            // Just like the reference photo
-            
-            // Apply offsets
-            const avgX_off = avgX + handOffset.x;
-            const knuckleY = -0.4 + handOffset.y;  // Below the fretboard
-            const knuckleZ = avgZ - 1.2 + handOffset.z;   // Just behind the target strings
-            
-            // Position palm behind neck
-            palmPosition.set(avgX_off, knuckleY - 0.5, knuckleZ + 0.3);
-            palmGroup.position.copy(palmPosition);
-            palmGroup.rotation.set(-0.3, 0, 0); // Tilted back
-            
-            // Thumb position (hidden but kept for compatibility)
-            thumbGroup.position.set(avgX_off + 0.1, 0.5, knuckleZ + 0.5);
-            
-            // Calculate knuckle positions (behind neck, below fretboard)
-            for (let i = 0; i < 4; i++) {
-                const xOffset = fingerConfigs[i].offset.x;
-                // Stagger knuckles - middle finger knuckle slightly higher (natural hand arch)
-                const yOffset = [0, 0.08, 0.06, -0.04][i]; 
-                
-                // Add tiny Z stagger to prevent Z-fighting if fingers are close
-                const zStagger = i * 0.05; 
-                
-                knucklePositions[i].set(
-                    avgX_off + xOffset,
-                    knuckleY + yOffset,
-                    knuckleZ + zStagger
-                );
-            }
-
-            // Set unused fingers to hover curled
-            // prevent crossing by interpolating between neighbors if possible
-            for (let i = 0; i < 4; i++) {
-                if (!fingerTargets[i]) {
-                    // Start with default position based on hand center
-                    let targetX = avgX_off + fingerConfigs[i].offset.x;
-                    let targetZ = avgZ;
-
-                    // Try to be smarter: stay between neighbors in the schematic order (Index -> Pinky)
-                    // Find nearest active neighbor to left (< i) and right (> i)
-                    let left = -1;
-                    let right = -1;
-                    
-                    // Look left (lower index)
-                    for(let j=i-1; j>=0; j--) {
-                        if(fingerTargets[j]) { left = j; break; }
-                    }
-                    // Look right (higher index)
-                    for(let j=i+1; j<4; j++) {
-                        if(fingerTargets[j]) { right = j; break; }
-                    }
-                    
-                    if (left !== -1 && right !== -1) {
-                         // We are sandwiched. Place proportionally between them.
-                         const range = fingerConfigs[right].offset.x - fingerConfigs[left].offset.x;
-                         const myRel = (fingerConfigs[i].offset.x - fingerConfigs[left].offset.x) / range;
-                         
-                         const worldRange = fingerTargets[right].x - fingerTargets[left].x;
-                         targetX = fingerTargets[left].x + worldRange * myRel;
-                         
-                         // Also interpolate Z to keep the "line" of fingers smooth
-                         const worldRangeZ = fingerTargets[right].z - fingerTargets[left].z;
-                         targetZ = fingerTargets[left].z + worldRangeZ * myRel;
-
-                    } else if (left !== -1) {
-                        // Only left neighbor. Keep minimal distance to right of it.
-                        // maintain at least the natural spacing
-                        const spacing = fingerConfigs[i].offset.x - fingerConfigs[left].offset.x;
-                        targetX = Math.max(targetX, fingerTargets[left].x + spacing * 0.8);
-                        targetZ = fingerTargets[left].z; // Roughly same Z (string) depth
-                        
-                    } else if (right !== -1) {
-                        // Only right neighbor. Keep minimal distance to left of it.
-                         const spacing = fingerConfigs[right].offset.x - fingerConfigs[i].offset.x;
-                         targetX = Math.min(targetX, fingerTargets[right].x - spacing * 0.8);
-                         targetZ = fingerTargets[right].z;
-                    }
-                    
-                    // Lift unused fingers higher
-                    fingerTargets[i] = new THREE.Vector3(
-                        targetX,
-                        0.8,  // Above fretboard
-                        targetZ
+                    return new THREE.Vector3(
+                        u*u*p0.x + 2*u*t*mid.x + t*t*p2.x,
+                        u*u*p0.y + 2*u*t*mid.y + t*t*p2.y,
+                        u*u*p0.z + 2*u*t*mid.z + t*t*p2.z
                     );
+                };
+
+                const totalLen = this.lengths.reduce((a,b)=>a+b,0);
+                const t1 = this.lengths[0]/totalLen;
+                const t2 = (this.lengths[0] + this.lengths[1])/totalLen;
+
+                const pos = [p0, getP(t1), getP(t2), p2];
+
+                // Apply to meshes
+                for(let i=0; i<4; i++) this.joints[i].position.copy(pos[i]);
+                for(let i=0; i<3; i++) {
+                    const center = new THREE.Vector3().lerpVectors(pos[i], pos[i+1], 0.5);
+                    this.segments[i].position.copy(center);
+                    this.segments[i].lookAt(pos[i+1]);
+                    this.segments[i].rotateX(Math.PI/2);
+                    // Stretch to fit
+                    const d = pos[i].distanceTo(pos[i+1]);
+                    this.segments[i].scale.set(1, d / this.lengths[i], 1);
                 }
             }
-            
-            // Update the chord diagram display
-            updateChordDiagram(chordName, chord);
         }
-        
-        // Function to display chord fingering information
-        function updateChordDiagram(chordName, chord) {
-            const fingerNames = ['Index (1)', 'Middle (2)', 'Ring (3)', 'Pinky (4)'];
-            const stringNames = ['e (1)', 'B (2)', 'G (3)', 'D (4)', 'A (5)', 'E (6)'];
-            
-            // Build finger position list
-            let fingerHtml = '';
-            for (const note of chord) {
-                fingerHtml += `<div class="finger-row">
-                    <span class="finger-name">${fingerNames[note.finger]}:</span>
-                    <span class="finger-pos">String ${note.string} (${stringNames[note.string-1]}), Fret ${note.fret}</span>
-                </div>`;
-            }
-            document.getElementById('finger-list').innerHTML = fingerHtml;
-            
-            // Build ASCII fretboard diagram
-            let fretboardHtml = '<pre style="margin:0;color:#ccc;">';
-            fretboardHtml += '     Fret: 0   1   2   3   4\n';
-            fretboardHtml += '          nut ─┬───┬───┬───┬──\n';
-            
-            for (let s = 1; s <= 6; s++) {
-                const label = stringNames[s-1].padEnd(6);
-                let line = label + '│';
+
+        // ==========================================
+        // UI MANAGER
+        // ==========================================
+        const uiManager = {
+            updateUIForChord(name, offset) {
+                // Highlight button
+                document.querySelectorAll('.chord-btn').forEach(b => {
+                    b.classList.remove('active');
+                    if(b.textContent === name) b.classList.add('active');
+                });
+                document.getElementById('current-chord-display').textContent = name;
+
+                // Set Sliders
+                ['x', 'y', 'z'].forEach(axis => {
+                    const input = document.querySelector(`input[oninput*="'${axis}'"]`);
+                    if(input) input.value = offset[axis];
+                    const disp = document.getElementById(`offset-${axis}`);
+                    if(disp) disp.textContent = parseFloat(offset[axis]).toFixed(1);
+                });
+
+                // Render Diagram
+                this.renderDiagram(name);
+            },
+
+            updateHandOffset(axis, value) {
+                value = parseFloat(value);
+                GuitarApp.handOffset[axis] = value;
+                document.getElementById(`offset-${axis}`).textContent = value.toFixed(1);
+                if(GuitarApp.currentChordName) GuitarApp.setChord(GuitarApp.currentChordName);
+            },
+
+            saveCurrentOffset() {
+                const name = GuitarApp.currentChordName;
+                if(!name) return;
+                const ho = GuitarApp.handOffset;
+                LibraryManager.data.offsets[name] = { x: ho.x, y: ho.y, z: ho.z };
+                LibraryManager.save();
+                const btn = document.querySelector(`button[onclick="uiManager.saveCurrentOffset()"]`);
+                const old = btn.textContent;
+                btn.textContent = "Saved!"; 
+                setTimeout(()=>btn.textContent=old, 1000);
+            },
+
+            resetCurrentOffset() {
+                const name = GuitarApp.currentChordName;
+                if (!DEFAULTS.offsets[name]) return; 
+                const def = DEFAULTS.offsets[name];
+                LibraryManager.data.offsets[name] = { ...def };
+                LibraryManager.save();
+                GuitarApp.setChord(name); 
+            },
+
+            renderChordButtons() {
+                const container = document.getElementById('chord-buttons-container');
+                container.innerHTML = '';
+                Object.keys(LibraryManager.data.chords).forEach(key => {
+                    const btn = document.createElement('button');
+                    btn.className = 'chord-btn';
+                    if (GuitarApp.currentChordName === key) btn.classList.add('active');
+                    btn.textContent = key;
+                    btn.onclick = () => GuitarApp.setChord(key);
+                    btn.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        editChord(key);
+                    };
+                    container.appendChild(btn);
+                });
+            },
+
+            renderDiagram(chordName) {
+                const fullChord = LibraryManager.data.chords[chordName];
+                const chord = fullChord.positions || fullChord; // fallback
+                const tags = fullChord.tags || [];
+
+                const fingerNames = ['Index (1)', 'Middle (2)', 'Ring (3)', 'Pinky (4)'];
+                const stringNames = ['e', 'B', 'G', 'D', 'A', 'E'];
                 
-                for (let f = 1; f <= 4; f++) {
-                    // Check if any finger is on this string/fret
-                    const note = chord.find(n => n.string === s && n.fret === f);
-                    if (note) {
-                        line += ` ${note.finger + 1} │`;
-                    } else {
-                        line += '───│';
-                    }
+                let html = '';
+                if(tags.length) {
+                    html += `<div style="margin-bottom:10px; font-size: 0.8em; color: var(--accent-color);">
+                        ${tags.map(t => `<span style="border:1px solid #555; padding:2px 6px; border-radius:4px; margin-right:4px;">${t}</span>`).join('')}
+                    </div>`;
                 }
-                fretboardHtml += line + '\n';
-            }
-            fretboardHtml += '</pre>';
-            
-            document.getElementById('fretboard-text').innerHTML = fretboardHtml;
-        }
 
-        // Make setChord available globally
-        window.setChord = setChord;
+                chord.forEach(note => {
+                    html += `<div class="finger-row">
+                        <span class="finger-name">${fingerNames[note.finger]}:</span>
+                        <span class="finger-pos">Str ${stringNames[note.string-1]}, Fr ${note.fret}</span>
+                    </div>`;
+                });
+                document.getElementById('finger-list').innerHTML = html;
 
-        window.togglePanel = function() {
-            const content = document.getElementById('panel-content');
-            const btn = document.getElementById('toggle-btn');
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                btn.textContent = '−';
-            } else {
-                content.style.display = 'none';
-                btn.textContent = '+';
+                // Ascii board
+                let board = '<pre>     Fret: 0   1   2   3   4\n          nut ─┬───┬───┬───┬──\n';
+                for(let s=1; s<=6; s++) {
+                    const lbl = stringNames[s-1].padEnd(6);
+                    let line = lbl + '│';
+                    for(let f=1; f<=4; f++) {
+                        const hit = chord.find(c => c.string === s && c.fret === f);
+                        line += hit ? ` ${hit.finger+1} │` : '───│';
+                    }
+                    board += line + '\n';
+                }
+                board += '</pre>';
+                document.getElementById('fretboard-text').innerHTML = board;
             }
         };
 
-        // Initialize with C chord
-        setChord('C');
-
-        // --- ANIMATION LOOP ---
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Update each finger's IK from its knuckle position
-            for (let i = 0; i < 4; i++) {
-                if (fingerTargets[i]) {
-                    fingers[i].setTarget(fingerTargets[i]);
-                    fingers[i].update(knucklePositions[i]);
-                }
-            }
-
-            controls.update();
-            renderer.render(scene, camera);
+        // ==========================================
+        // EXPORT GLOBALS FOR HTML
+        // ==========================================
+        window.libraryManager = LibraryManager;
+        window.uiManager = uiManager;
+        
+        // Modal Logic Globals
+        window.togglePanel = function() {
+            const p = document.getElementById('panel-content');
+            const b = document.getElementById('toggle-btn');
+            if(p.style.display==='none') { p.style.display='block'; b.textContent='−'; }
+            else { p.style.display='none'; b.textContent='+'; }
         }
 
-        animate();
+        window.openModal = function() {
+            document.getElementById('chordModal').style.display = 'block';
+            setupForm(); // For new chord
+        }
+        window.closeModal = function() { document.getElementById('chordModal').style.display = 'none'; }
+        
+        window.editChord = function(name) {
+            document.getElementById('chordModal').style.display = 'block';
+            document.getElementById('edit-name').value = name;
+            setupForm(name);
+        }
 
-        // Handle resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        function setupForm(name) {
+            const container = document.getElementById('string-inputs');
+            container.innerHTML = '';
+            
+            const chordObj = name ? LibraryManager.data.chords[name] : {};
+            const positions = chordObj.positions || (Array.isArray(chordObj) ? chordObj : []);
+            const tags = chordObj.tags || [];
 
-        // Keyboard shortcuts
-        window.addEventListener('keydown', (e) => {
-            if (e.key === '1') setChord('C');
-            if (e.key === '2') setChord('D');
-            if (e.key === '3') setChord('G');
-            if (e.key === '4') setChord('A');
-            if (e.key === '5') setChord('E');
-            if (e.key === '6') setChord('F');
-            if (e.key === '7') setChord('Am');
-            if (e.key === '8') setChord('Em');
-            if (e.key === '9') setChord('Dm');
-        });
+            // Add Tag Input
+            const tagInput = document.createElement('div');
+            tagInput.className = 'form-group';
+            tagInput.innerHTML = `
+                <label>Tags (comma separated)</label>
+                <input type="text" id="edit-tags" value="${tags.join(', ')}" placeholder="e.g. Major, Open, Barre">
+            `;
+            container.appendChild(tagInput);
+
+            const labels = ['High e', 'B', 'G', 'D', 'A', 'Low E'];
+
+            for(let s=1; s<=6; s++) {
+                const note = positions.find(n => n.string === s);
+                const fret = note ? note.fret : 0;
+                const finger = note ? note.finger : -1;
+                
+                const div = document.createElement('div');
+                div.className = 'string-row';
+                div.innerHTML = `
+                    <label>${labels[s-1]}</label>
+                    <input type="number" min="0" max="24" id="fret-${s}" value="${fret}">
+                    <select id="finger-${s}">
+                        <option value="-1" ${finger===-1?'selected':''}>-</option>
+                        <option value="0" ${finger===0?'selected':''}>Index</option>
+                        <option value="1" ${finger===1?'selected':''}>Middle</option>
+                        <option value="2" ${finger===2?'selected':''}>Ring</option>
+                        <option value="3" ${finger===3?'selected':''}>Pinky</option>
+                    </select>
+                `;
+                container.appendChild(div);
+            }
+            
+            const delBtn = document.getElementById('delete-chord-btn');
+            if(name) {
+                 delBtn.style.display = 'block';
+                 delBtn.onclick = () => window.deleteChord(name);
+            } else {
+                delBtn.style.display = 'none';
+            }
+        }
+
+        window.saveChordFromForm = function() {
+            const name = document.getElementById('edit-name').value.trim();
+            if(!name) return alert("Name required");
+            
+            // Get Tags
+            const tagStr = document.getElementById('edit-tags').value;
+            const tags = tagStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+            // Get Positions
+            const positions = [];
+            for(let s=1; s<=6; s++) {
+                const fret = parseInt(document.getElementById(`fret-${s}`).value);
+                const finger = parseInt(document.getElementById(`finger-${s}`).value);
+                if(finger >= 0) positions.push({string: s, fret, finger});
+            }
+            
+            LibraryManager.data.chords[name] = { positions, tags };
+            // Only set offset if new
+            if(!LibraryManager.data.offsets[name]) LibraryManager.data.offsets[name] = {x:0, y:0, z:0};
+            
+            LibraryManager.save();
+            closeModal();
+            GuitarApp.setChord(name);
+        }
+
+        window.deleteChord = function(name) {
+            if(confirm('Delete ' + name + '?')) {
+                delete LibraryManager.data.chords[name];
+                delete LibraryManager.data.offsets[name];
+                LibraryManager.save();
+                closeModal();
+                GuitarApp.setChord(Object.keys(LibraryManager.data.chords)[0] || 'C');
+            }
+        }
+
+        // --- BOOTSTRAP ---
+        LibraryManager.init();
+        GuitarApp.init();
+
+        // Initial Load
+        const firstChord = Object.keys(LibraryManager.data.chords)[0] || 'C';
+        GuitarApp.setChord(firstChord);
+
     </script>
 </body>
 </html>
