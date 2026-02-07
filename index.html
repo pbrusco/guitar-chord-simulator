@@ -227,19 +227,15 @@
                 
                 <div class="control-row">
                     <label>X:</label>
-                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('x', this.value)">
+                    <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('x', this.value)">
                     <span id="offset-x">0.0</span>
                 </div>
                 <div class="control-row">
                     <label>Y:</label>
-                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('y', this.value)">
+                    <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('y', this.value)">
                     <span id="offset-y">0.0</span>
                 </div>
-                <div class="control-row">
-                    <label>Z:</label>
-                    <input type="range" min="-2" max="2" step="0.1" value="0" oninput="uiManager.updateHandOffset('z', this.value)">
-                    <span id="offset-z">0.0</span>
-                </div>
+                <!-- Z-axis locked logic -->
                 
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
                     <button onclick="uiManager.saveCurrentOffset()" class="btn" style="background: #ff9800; flex-grow: 1; font-weight: bold;">Save Position</button>
@@ -315,11 +311,11 @@
             },
             offsets: {
                 // Offsets defaults - many just use 0, but good to have keys
-                'C': { x: 0, y: 0, z: 0 },
-                'A': { x: -1, y: 0.4, z: 0 },
-                'G': { x: -0.3, y: 1, z: 0.2 },
-                'E': { x: -0.1, y: 0.8, z: 0 },
-                'D': { x: -1, y: 0, z: 0 },
+                'C': { x: 0, y: 0 },
+                'A': { x: -1, y: 0.4 },
+                'G': { x: -0.3, y: 1 },
+                'E': { x: -0.1, y: 0.8 },
+                'D': { x: -1, y: 0 },
             }
         };
 
@@ -708,14 +704,56 @@
                 // If any finger is barre, we usually push the wrist forward and lower
                 let barreZ = 0;
                 let barreY = 0;
-                if(this.fingers.some(f => f.isBarre)) {
-                     barreZ = 0.6; // Push hand forward (towards Low E)
+                
+                // --- RIGID HAND CORRECTION ---
+                // If a finger is barre, it MUST start perpendicular to strict X.
+                // To keep the hand connected, we must shift the entire baseX to satisfy this constraint.
+                // We prioritize the lowest index barre (usually index finger).
+                let baseX = avgX + this.handOffset.x;
+                const barreFingerIdx = this.fingers.findIndex(f => f.isBarre);
+                
+                if(barreFingerIdx !== -1) {
+                     barreZ = 0.6; // Push hand forward
                      barreY = -0.2; // Flatten wrist
+                     
+                     // RIGID X-ALIGNMENT with FLEXIBILITY
+                     // We want the finger start to be perpendicular (fixed distance),
+                     // BUT we also want to allow the user's manual offset (this.handOffset.x) to shift the whole hand.
+                     // Previously, using tipX - offset.x completely OVERRODE user's shift if avgX wasn't perfectly aligned.
+                     
+                     // 1. Calculate the "Ideal" BaseX for perfect perpendicularity
+                     const tipX = this.fingerTargets[barreFingerIdx].x;
+                     const idealBaseX = tipX - this.fingerConfigs[barreFingerIdx].offset.x;
+
+                     // 2. Allow user offset relative to that ideal position
+                     // Note: We ignore avgX here because for a barre, the anchor is the barre finger, not the average of dots.
+                     // User request: "When barre, allow only +- 0.5 in the X direction."
+                     let xShift = this.handOffset.x;
+                     
+                     // Strictly clamp the manual offset for barre chords
+                     if(xShift > 0.5) xShift = 0.5;
+                     if(xShift < -0.5) xShift = -0.5;
+
+                     baseX = idealBaseX + xShift;
+
+                     // RIGID Y-ALIGNMENT (Prevent separation)
+                     // If we are barring, the barre finger MUST be flat at Y=0.48.
+                     // But if we only override that one finger, the others slide away when 'knuckleY' follows the Y-slider.
+                     // We must calc 'knuckleY' such that the barre finger lands at 0.48 naturally.
+                     // idealBaseY + stagger = 0.48  => ideaBaseY = 0.48 - stagger
+                     const yStagger = [0, 0.08, 0.06, -0.04][barreFingerIdx];
+                     barreY = (0.48 - yStagger) - (-0.4); // Subtract baseline (-0.4) so adding it back cancels out
+                     
+                     // RIGID Y-LOCK for Barre
+                     // User Request: "with barre, do not allow any Y movement at all."
+                     // We force the offset to 0 so the hand stays perfectly at the calculated ideal height.
+                     this.currentYOffset = 0; 
+                } else {
+                     this.currentYOffset = this.handOffset.y;
                 }
 
                 // 3. Position Hand Base
-                const baseX = avgX + this.handOffset.x;
-                const knuckleY = -0.4 + this.handOffset.y + barreY;
+                const knuckleY = -0.4 + this.currentYOffset + barreY;
                 
                 // FIXED Z-START
                 // User requirement: "Do not allow user change Z, fingers should always start at the top of the freat"
@@ -736,16 +774,6 @@
                         knuckleY + yStagger,
                         knuckleZ + zStagger
                     );
-
-                    // BARRE OVERRIDE
-                    // Force the knuckle to be perpendicular (Same X) and flat (Same Y/Z start)
-                    if(this.fingers[i].isBarre && this.fingerTargets[i]) {
-                         const t = this.fingerTargets[i];
-                         this.knucklePositions[i].x = t.x; // Perpendicular to fret
-                         this.knucklePositions[i].y = 0.48; // Flat height
-                         // Start "below" High E (z=-0.7).
-                         this.knucklePositions[i].z = -0.85; 
-                    }
                 }
 
                 // 4. Handle Unused Fingers (Smart Parking)
@@ -772,7 +800,7 @@
                             tz = this.fingerTargets[right].z;
                         }
 
-                        this.fingerTargets[i] = new THREE.Vector3(tx, 0.8, tz);
+                        this.fingerTargets[i] = new THREE.Vector3(tx, 1.1, tz);
                     }
                 }
             },
@@ -992,11 +1020,11 @@
                 document.getElementById('current-chord-display').textContent = name;
 
                 // Set Sliders
-                ['x', 'y', 'z'].forEach(axis => {
+                ['x', 'y'].forEach(axis => {
                     const input = document.querySelector(`input[oninput*="'${axis}'"]`);
-                    if(input) input.value = offset[axis];
+                    if(input && offset[axis] !== undefined) input.value = offset[axis];
                     const disp = document.getElementById(`offset-${axis}`);
-                    if(disp) disp.textContent = parseFloat(offset[axis]).toFixed(1);
+                    if(disp && offset[axis] !== undefined) disp.textContent = parseFloat(offset[axis]).toFixed(1);
                 });
 
                 // Render Diagram
@@ -1014,7 +1042,7 @@
                 const name = GuitarApp.currentChordName;
                 if(!name) return;
                 const ho = GuitarApp.handOffset;
-                LibraryManager.data.offsets[name] = { x: ho.x, y: ho.y, z: ho.z };
+                LibraryManager.data.offsets[name] = { x: ho.x, y: ho.y };
                 LibraryManager.save();
                 const btn = document.querySelector(`button[onclick="uiManager.saveCurrentOffset()"]`);
                 const old = btn.textContent;
@@ -1180,7 +1208,7 @@
             
             LibraryManager.data.chords[name] = { positions, tags };
             // Only set offset if new
-            if(!LibraryManager.data.offsets[name]) LibraryManager.data.offsets[name] = {x:0, y:0, z:0};
+            if(!LibraryManager.data.offsets[name]) LibraryManager.data.offsets[name] = {x:0, y:0};
             
             LibraryManager.save();
             closeModal();
