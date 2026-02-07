@@ -390,6 +390,13 @@
     <!-- CONTROL PANEL -->
     <div id="controls" class="glass-panel">
         
+        <!-- Search Box -->
+        <div style="padding: 12px 12px 4px 12px;">
+            <input type="text" id="chord-search-input" placeholder="🔍  Search chords..." 
+                   oninput="uiManager.renderChordButtons()"
+                   style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: white; font-size: 13px;">
+        </div>
+
         <!-- Chords Strip (Shows above panel on mobile) -->
         <div id="chord-strip">
             <div id="chord-buttons-container"></div>
@@ -1456,12 +1463,23 @@
                 const container = document.getElementById('chord-buttons-container');
                 container.innerHTML = '';
                 
+                const searchInput = document.getElementById('chord-search-input');
+                const filter = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                
                 const chords = LibraryManager.data.chords;
                 const groups = {};
                 // Define standard tags order
                 const sortOrder = ['Open', 'Barre', 'Power', 'Jazz', 'Basic']; 
                 
                 Object.keys(chords).forEach(key => {
+                    // Filter Logic
+                    if (filter) {
+                        const chord = chords[key];
+                        const keyMatch = key.toLowerCase().includes(filter);
+                        const tagMatch = chord.tags && chord.tags.some(t => t.toLowerCase().includes(filter));
+                        if (!keyMatch && !tagMatch) return;
+                    }
+
                     const chord = chords[key];
                     let group = (chord.tags && chord.tags.length > 0) ? chord.tags[0] : 'Other';
                     
