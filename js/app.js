@@ -255,11 +255,15 @@ const GuitarApp = {
         const isMobile = window.innerWidth <= 768;
 
         if (this.isVertical) {
-            // Vertical Mode
+            // Vertical Mode (Top-Down, Nut at Top)
              this.camera.position.set(-2.4, 10.3, -0.3);
-             this.controls.target.set(-2.4, 0, -0.3); // Look straight down at the neck around fret 3-5?
+             this.controls.target.set(-2.4, 0, -0.3); 
+             // Rotate camera so -X (Headstock) is Up
+             this.camera.up.set(-1, 0, 0);
         } else {
              // Default Mode
+             this.camera.up.set(0, 1, 0);
+             
             if (isMobile) {
                 this.camera.position.set(-0.5, 10.5, 6.0);
                 this.controls.target.set(-2.4, 0.7, 1.5);
