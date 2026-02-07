@@ -1202,8 +1202,8 @@
 
                 // Joints
                 for(let i=0; i<4; i++) {
-                    // Tip gets the color
-                    const m = (i === 3) ? tipMat : jointMat;
+                    // Tip gets the special color, others get skin color (same as segments)
+                    const m = (i === 3) ? tipMat : skinMat;
                     const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), m);
                     joint.castShadow = true;
                     scene.add(joint);
