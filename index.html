@@ -381,7 +381,7 @@
     <div id="chordModal" class="modal">
         <div class="modal-content glass-panel">
             <div class="modal-header">
-                <h2>Manage Library</h2>
+                <h2 data-i18n="manage_lib">Manage Library</h2>
                 <button class="icon-btn" onclick="closeModal()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -390,18 +390,18 @@
             <div class="modal-body">
                 <div class="reset-bar">
                     <button class="btn btn-secondary btn-full" onclick="libraryManager.resetLibrary()">
-                         Reset Library to Defaults
+                         <span data-i18n="reset_lib">Reset Library to Defaults</span>
                     </button>
-                    <p style="text-align: center; font-size: 11px; opacity: 0.5; margin-top: 8px;">
+                    <p data-i18n="reloads" style="text-align: center; font-size: 11px; opacity: 0.5; margin-top: 8px;">
                         (Reloads from js/chords/ folders)
                     </p>
                 </div>
 
                 <div class="divider"></div>
 
-                <h3>Chord Editor</h3>
+                <h3 data-i18n="chord_editor">Chord Editor</h3>
                 <div class="form-group">
-                    <label>Chord Name</label>
+                    <label data-i18n="chord_name">Chord Name</label>
                     <input type="text" id="edit-name" placeholder="e.g. Bm7">
                 </div>
 
@@ -413,7 +413,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="delete-chord-btn" onclick="deleteChord()" style="display:none; color: #ff6b6b;">Delete</button>
                 <div style="flex-grow: 1;"></div>
-                <button class="btn btn-primary" onclick="saveChordFromForm()">Save Changes</button>
+                <button class="btn btn-primary" onclick="saveChordFromForm()"><span data-i18n="save_changes">Save Changes</span></button>
             </div>
         </div>
     </div>
@@ -463,6 +463,8 @@
                     saved: "Saved!",
                     del_confirm: "Delete ",
                     reset_confirm: "Reset entire library to defaults?",
+                    name_req: "Chord Name is required!",
+                    name_req: "Chord Name is required!",
                     
                     // Tags
                     "Barre": "Barre", "Open": "Open", "Major": "Major", "Minor": "Minor", 
@@ -486,6 +488,7 @@
                     saved: "Guardado!",
                     del_confirm: "Eliminar ",
                     reset_confirm: "¿Restaurar biblioteca completa a valores por defecto?",
+                    name_req: "¡Se requiere nombre del acorde!",
                     
                     // Tags
                     "Barre": "Cejilla", "Open": "Abierto", "Major": "Mayor", "Minor": "Menor", 
@@ -642,7 +645,7 @@
             },
 
             resetLibrary() {
-                if(confirm("Reset entire library to defaults?")) {
+                if(confirm(TranslationManager.t('reset_confirm'))) {
                     localStorage.removeItem('guitarChordLibrary');
                     localStorage.removeItem('guitarHandOffsets');
                     this.resetDataToDefaults();
@@ -1456,7 +1459,7 @@
 
         window.saveChordFromForm = function() {
             const name = document.getElementById('edit-name').value.trim();
-            if(!name) return alert("Name required");
+            if(!name) return alert(TranslationManager.t('name_req'));
             
             // Get Tags
             const tagStr = document.getElementById('edit-tags').value;
@@ -1480,7 +1483,7 @@
         }
 
         window.deleteChord = function(name) {
-            if(confirm('Delete ' + name + '?')) {
+            if(confirm(TranslationManager.t('del_confirm') + name + '?')) {
                 delete LibraryManager.data.chords[name];
                 delete LibraryManager.data.offsets[name];
                 LibraryManager.save();
