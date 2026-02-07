@@ -443,15 +443,25 @@ const GuitarApp = {
         this.markerGroup = new THREE.Group();
         this.scene.add(this.markerGroup);
 
-        // Initialize Fingers
+        // Initialize Fingers - Add to handGroup instead of scene
         for (let i = 0; i < 4; i++) {
             const fConfig = this.fingerConfigs[i];
-            const f = new Finger(this.fingerColors[i], fConfig.offset, fConfig.lengths, this.scene);
+            const f = new Finger(this.fingerColors[i], fConfig.offset, fConfig.lengths, this.handGroup);
             this.fingers.push(f);
             this.knucklePositions.push(new THREE.Vector3());
             this.actualFingerPositions.push(new THREE.Vector3());
             this.actualKnucklePositions.push(new THREE.Vector3());
         }
+
+        // Initialize Palm
+        const palmGeo = new THREE.BoxGeometry(1.6, 0.25, 1.4);
+        const palmMat = new THREE.MeshStandardMaterial({ 
+             map: SHARED_SKIN_TEX, 
+             roughness: 0.5 
+        });
+        this.palmMesh = new THREE.Mesh(palmGeo, palmMat);
+        this.palmMesh.castShadow = true;
+        this.handGroup.add(this.palmMesh);
     },
 
     getNotePosition(stringIdx, fret) {
@@ -668,6 +678,14 @@ const GuitarApp = {
 
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
+    },
+
+    toggleHand() {
+        if (this.handGroup) {
+            this.handGroup.visible = !this.handGroup.visible;
+            return this.handGroup.visible;
+        }
+        return true;
     },
 
     onResize() {
@@ -901,6 +919,14 @@ const uiManager = {
         }
         
         this.renderSelectors();
+    },
+
+    toggleHandVisibility() {
+        const visible = GuitarApp.toggleHand();
+        const btn = document.getElementById('hand-toggle-btn');
+        if(btn) {
+            btn.style.opacity = visible ? '1' : '0.5';
+        }
     },
 
     updateUIForChord(name, offset) {
@@ -1245,7 +1271,7 @@ const uiManager = {
         const typeKeys = (typeMap[validType] || []);
 
         // 3. CATEGORIES (Disposition) - Now dependent on Root + Type
-        const categories = new Set(['All']);
+        const categories = new Set();
         typeKeys.forEach(k => {
             const data = chords[k];
             if(data.tags) {
@@ -1256,24 +1282,24 @@ const uiManager = {
             }
         });
 
-        let validCat = this.selectedSelectorCategory || 'All';
-        // If the previously selected category doesn't exist for this Root+Type, fallback to 'All'
-        // But 'All' always exists in our logic.
-        // However, if we want to force a specific filtered view:
-        if(!categories.has(validCat)) validCat = 'All';
+        const catOrder = ['Open', 'Barre', 'Triad', 'Tetrad'];
+        const sortedCats = Array.from(categories).sort((a,b) => {
+                let ia = catOrder.indexOf(a);
+                let ib = catOrder.indexOf(b);
+                if(ia === -1) ia = 99; 
+                if(ib === -1) ib = 99;
+                return ia - ib;
+        });
+
+        let validCat = this.selectedSelectorCategory;
+        if(!categories.has(validCat)) {
+                validCat = sortedCats.length > 0 ? sortedCats[0] : null;
+        }
         this.selectedSelectorCategory = validCat;
 
         const catContainer = document.getElementById('category-selector');
         if(catContainer) {
             catContainer.innerHTML = '';
-            const catOrder = ['All', 'Open', 'Barre', 'Triad', 'Tetrad'];
-            const sortedCats = Array.from(categories).sort((a,b) => {
-                 let ia = catOrder.indexOf(a);
-                 let ib = catOrder.indexOf(b);
-                 if(ia === -1) ia = 99; 
-                 if(ib === -1) ib = 99;
-                 return ia - ib;
-            });
             
             sortedCats.forEach(c => {
                 const btn = document.createElement('button');
@@ -1301,7 +1327,7 @@ const uiManager = {
                 invContainer.style.display = 'flex';
                 
                 // Collect specific inversion tags from the currently filtered keys
-                const inversions = new Set(['All']);
+                const inversions = new Set();
                 const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
                 
                 catKeys.forEach(k => {
@@ -1313,13 +1339,7 @@ const uiManager = {
                     }
                 });
 
-                let validInv = this.selectedSelectorInversion || 'All';
-                if (!inversions.has(validInv)) validInv = 'All';
-                this.selectedSelectorInversion = validInv;
-
-                invContainer.innerHTML = '';
-                // Sort order: All, Root-Pos, 1st-Inv, 2nd-Inv, Drop2, Drop3
-                const invOrder = ['All', 'Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                const invOrder = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
                 const sortedInvs = Array.from(inversions).sort((a,b) => {
                     let ia = invOrder.indexOf(a);
                     let ib = invOrder.indexOf(b);
@@ -1328,6 +1348,14 @@ const uiManager = {
                     return ia - ib;
                 });
 
+                let validInv = this.selectedSelectorInversion;
+                if (!inversions.has(validInv)) {
+                    validInv = sortedInvs.length > 0 ? sortedInvs[0] : null;
+                }
+                this.selectedSelectorInversion = validInv;
+
+                invContainer.innerHTML = '';
+                
                 sortedInvs.forEach(inv => {
                     const btn = document.createElement('button');
                     btn.className = `selector-btn ${inv === validInv ? 'selected' : ''}`;
@@ -1338,7 +1366,7 @@ const uiManager = {
                 });
 
                 // Filter final keys by Inversion
-                if (validInv !== 'All') {
+                if (validInv) {
                     finalKeys = catKeys.filter(k => {
                         const data = chords[k];
                         return data.tags && data.tags.includes(validInv);
@@ -1379,6 +1407,20 @@ const uiManager = {
                 let label = k;
                 if(pIdx !== -1) {
                     label = k.substring(pIdx+1, k.length-1);
+
+                    // Refined Label Logic: Remove redundant Category/Inversion info
+                    const cat = this.selectedSelectorCategory;
+                    if(cat && cat !== 'All') {
+                         if(label.startsWith(cat + ' ')) label = label.substring(cat.length + 1);
+                    }
+                    const inv = this.selectedSelectorInversion;
+                    if(inv && inv !== 'All') {
+                        let remove = '';
+                        if(inv === 'Root-Pos') remove = 'Root';
+                        else if(inv === '1st-Inv') remove = 'Inv 1';
+                        else if(inv === '2nd-Inv') remove = 'Inv 2';
+                        if(remove) label = label.replace(remove, '').trim();
+                    }
                 } else {
                      // Attempt to get a descriptive label by stripping Root and Type
                      let clean = k;
