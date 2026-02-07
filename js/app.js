@@ -178,6 +178,97 @@ const LibraryManager = {
 };
 
 // ==========================================
+// SOUND MANAGER
+// ==========================================
+const SoundManager = {
+    ctx: null,
+    muted: false,
+    
+    init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    },
+
+    toggleMute() {
+        this.muted = !this.muted;
+        // Resume context on unmute if suspended
+        if(!this.muted && this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+        return this.muted;
+    },
+
+    playNote(freq, delay) {
+        if (this.muted || !this.ctx) return;
+        
+        const t = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        filter.type = "lowpass";
+        filter.Q.value = 1;
+
+        // Chain
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        // Filter Envelope (Pluck brightness)
+        filter.frequency.setValueAtTime(freq * 3, t);
+        filter.frequency.exponentialRampToValueAtTime(freq, t + 0.4);
+
+        // Gain Envelope
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+
+        osc.start(t);
+        osc.stop(t + 2.5);
+    },
+
+    playChord(name) {
+        if (this.muted) return;
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        
+        const data = LibraryManager.data.chords[name];
+        if (!data) return;
+
+        // Base Frequencies for Standard Tuning (Low E to High E: Strings 6 to 1)
+        const stringBaseFreqs = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
+        
+        const positions = data.positions || data;
+        let delay = 0;
+
+        // Strum down (6 to 1)
+        for(let s=6; s>=1; s--) {
+             const pos = positions.find(p => p.string === s);
+             if(pos && pos.fret >= -1) { // -1 usually handled as x, but verify data
+                 // Usually only pos with fret >= 0 are played.
+                 // If fret is not present, it's mute? 
+                 // In our data: `positions` only lists played notes.
+                 // Wait, OPEN chords might not list open strings if data is sparse?
+                 // Checking shapes.js: offsets specify strings. 
+                 // It seems positions array is complete for the chord.
+                 
+                 // However, we must ensure we only play if fret >= 0.
+                 if (pos.fret >= 0) {
+                     const base = stringBaseFreqs[6-s];
+                     const freq = base * Math.pow(2, pos.fret / 12);
+                     this.playNote(freq, delay);
+                     delay += 0.04;
+                 }
+             }
+        }
+    }
+};
+
+// ==========================================
 // 3D SCENE & ENGINE
 // ==========================================
 const GuitarApp = {
@@ -515,6 +606,7 @@ const GuitarApp = {
         uiManager.updateUIForChord(name, offset);
 
         this.updatePositions();
+        SoundManager.playChord(name);
     },
 
     updatePositions() {
@@ -968,6 +1060,15 @@ const uiManager = {
         const btn = document.getElementById('hand-toggle-btn');
         if(btn) {
             btn.style.opacity = visible ? '1' : '0.5';
+        }
+    },
+
+    toggleMute() {
+        const muted = SoundManager.toggleMute();
+        const btn = document.getElementById('mute-btn');
+        if(btn) {
+            btn.style.opacity = muted ? '0.5' : '1';
+            btn.innerHTML = muted ? '🔇' : '🔊';
         }
     },
 
