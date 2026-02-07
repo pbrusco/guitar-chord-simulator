@@ -1380,7 +1380,23 @@ const uiManager = {
                 if(pIdx !== -1) {
                     label = k.substring(pIdx+1, k.length-1);
                 } else {
-                     label = "Default"; 
+                     // Attempt to get a descriptive label by stripping Root and Type
+                     let clean = k;
+                     if(clean.startsWith(this.selectedSelectorRoot)) {
+                         clean = clean.substring(this.selectedSelectorRoot.length).trim();
+                     }
+                     
+                     // If the remainder starts with the type (e.g. "m Open", "7 Open"), strip it too
+                     // to leave just the variant description (e.g. "Open")
+                     const type = this.selectedSelectorType; 
+                     if (type && type !== 'Major' && type !== 'All') {
+                         if (clean.startsWith(type)) {
+                             clean = clean.substring(type.length).trim();
+                         }
+                     }
+                     
+                     label = clean;
+                     if(!label) label = "Standard"; 
                 }
                 if(label.startsWith("Barre ")) label = label.substring(6); 
                 
