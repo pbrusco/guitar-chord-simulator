@@ -98,6 +98,7 @@
             padding: 20px;
             overflow-y: auto;
             scrollbar-width: thin;
+        }
             scrollbar-color: var(--secondary) transparent;
         }
         
@@ -1454,20 +1455,65 @@
             renderChordButtons() {
                 const container = document.getElementById('chord-buttons-container');
                 container.innerHTML = '';
-                Object.keys(LibraryManager.data.chords).forEach(key => {
-                    const btn = document.createElement('button');
-                    btn.className = 'chord-btn';
-                    if (GuitarApp.currentChordName === key) btn.classList.add('active');
+                
+                const chords = LibraryManager.data.chords;
+                const groups = {};
+                // Define standard tags order
+                const sortOrder = ['Open', 'Barre', 'Power', 'Jazz', 'Basic']; 
+                
+                Object.keys(chords).forEach(key => {
+                    const chord = chords[key];
+                    let group = (chord.tags && chord.tags.length > 0) ? chord.tags[0] : 'Other';
                     
-                    // TRANSLATION APPLIED HERE
-                    btn.textContent = TranslationManager.translateChordName(key);
+                    if (!groups[group]) groups[group] = [];
+                    groups[group].push(key);
+                });
+
+                // Sort groups based on sortOrder
+                const sortedGroups = Object.keys(groups).sort((a, b) => {
+                    const idxA = sortOrder.indexOf(a);
+                    const idxB = sortOrder.indexOf(b);
                     
-                    btn.onclick = () => GuitarApp.setChord(key);
-                    btn.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        editChord(key);
-                    };
-                    container.appendChild(btn);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    
+                    if (a === 'Other') return 1;
+                    if (b === 'Other') return -1;
+                    
+                    return a.localeCompare(b);
+                });
+
+                const groupColors = {
+                    'Open': '#10b981',   // Emerald
+                    'Barre': '#3b82f6',  // Blue
+                    'Power': '#ef4444',  // Red
+                    'Jazz': '#8b5cf6',   // Violet
+                    'Basic': '#f59e0b',  // Amber
+                    'Other': '#64748b'   // Slate
+                };
+
+                sortedGroups.forEach((groupName) => {
+                    const color = groupColors[groupName] || groupColors['Other'];
+
+                    // Sort chords within group alphabetically
+                    groups[groupName].sort().forEach(key => {
+                        const btn = document.createElement('button');
+                        btn.className = 'chord-btn';
+                        if (GuitarApp.currentChordName === key) btn.classList.add('active');
+                        
+                        // Apply group color
+                        btn.style.borderBottom = `2px solid ${color}`;
+                        
+                        btn.textContent = TranslationManager.translateChordName(key);
+                        
+                        btn.onclick = () => GuitarApp.setChord(key);
+                        btn.oncontextmenu = (e) => {
+                            e.preventDefault();
+                            editChord(key);
+                        };
+                        container.appendChild(btn);
+                    });
                 });
             },
 
@@ -1676,6 +1722,11 @@
                 const keys = Object.keys(LibraryManager.data.chords);
                 const firstChord = keys.length > 0 ? keys[0] : 'C'; // Fallback
                 GuitarApp.setChord(firstChord);
+
+                // Auto-minimize on mobile
+                if (window.innerWidth <= 768) {
+                    togglePanel();
+                }
             } catch(e) {
                 console.error("Bootstrap failed:", e);
                 alert("App startup failed: " + e);
