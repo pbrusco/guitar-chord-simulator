@@ -32,6 +32,7 @@ const TranslationManager = {
             del_confirm: "Delete ",
             reset_confirm: "Reset entire library to defaults?",
             name_req: "Chord Name is required!",
+            "All": "All",
             
             // Tags
             "Barre": "Barre", "Open": "Open", "Major": "Major", "Minor": "Minor", 
@@ -58,6 +59,7 @@ const TranslationManager = {
             del_confirm: "Eliminar ",
             reset_confirm: "¿Restaurar biblioteca completa a valores por defecto?",
             name_req: "¡Se requiere nombre del Acorde!",
+            "All": "Todos",
             
             // Tags
             "Barre": "Cejilla", "Open": "Abierto", "Major": "Mayor", "Minor": "Menor", 
@@ -808,6 +810,7 @@ class Finger {
 const uiManager = {
     selectedSelectorRoot: 'C',
     selectedSelectorType: 'Major',
+    selectedSelectorCategory: 'All', // New State
 
     updateUIForChord(name, offset) {
         document.getElementById('current-chord-display').textContent = TranslationManager.translateChordName(name);
@@ -820,7 +823,6 @@ const uiManager = {
         for(const n of sortedNotes) {
             if(name.startsWith(n)) {
                 // Ensure next char is not part of a longer note symbol (unlikely with sorted check)
-                // e.g. "Bb" vs "B". If "Bb...", "Bb" matches first.
                 root = n;
                 break;
             }
@@ -844,6 +846,16 @@ const uiManager = {
         const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
         if (norm(this.selectedSelectorType) !== norm(type)) {
             this.selectedSelectorType = norm(type);
+        }
+
+        // Sync Category based on tags of current chord
+        const chordData = LibraryManager.data.chords[name];
+        if(chordData && chordData.tags) {
+            if(chordData.tags.includes('Open')) this.selectedSelectorCategory = 'Open';
+            else if(chordData.tags.includes('Barre')) this.selectedSelectorCategory = 'Barre';
+            else if(chordData.tags.includes('Triad')) this.selectedSelectorCategory = 'Triad';
+            else if(chordData.tags.includes('Tetrad')) this.selectedSelectorCategory = 'Tetrad';
+            else this.selectedSelectorCategory = 'All';
         }
         
         this.renderSelectors();
@@ -898,36 +910,34 @@ const uiManager = {
         this.renderSelectors();
         this.tryAutoSelectChord();
     },
+    selectSelectorCategory(cat) {
+        this.selectedSelectorCategory = cat;
+        this.renderSelectors();
+        // Maybe try to select the first chord in this category?
+    },
 
     tryAutoSelectChord() {
+        // Logic will need update to respect Category too
         const root = this.selectedSelectorRoot;
         const type = this.selectedSelectorType;
+        const cat = this.selectedSelectorCategory;
+
         if(!root || !type) return;
 
-        // Find best match for current variation preferences (e.g. if we were on E-Shape, stay on E-Shape)
-        // Get current chord tags
+        // Current tags for scoring
         const currentName = GuitarApp.currentChordName;
         let p_tags = [];
-        let p_fret = -1; 
-        
         if(currentName && LibraryManager.data.chords[currentName]) {
              p_tags = LibraryManager.data.chords[currentName].tags || [];
-             const m = currentName.match(/(\d+)fr/);
-             if(m) p_fret = parseInt(m[1]);
         }
 
-        // Look for candidate keys
         const keys = Object.keys(LibraryManager.data.chords);
         
-        // Filter by Root and Type
         const candidates = keys.filter(k => {
-            // Check Root
             if(!k.startsWith(root)) return false;
-            // Check exact root match (avoid C matching C#)
             const afterRoot = k[root.length];
             if(afterRoot === '#' || afterRoot === 'b') return false;
 
-            // Check Type
             let suffix = k.substring(root.length);
             let kType = "Major";
             const pIdx = suffix.indexOf(' (');
@@ -938,14 +948,21 @@ const uiManager = {
                 kType = suffix.trim();
             }
             
-            // Normalize
             const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
-            return norm(kType) === norm(type);
+            if (norm(kType) !== norm(type)) return false;
+
+            // Check Category
+            if (cat !== 'All') {
+                const cTags = LibraryManager.data.chords[k].tags || [];
+                if (!cTags.includes(cat)) return false;
+            }
+
+            return true;
         });
 
         if(candidates.length === 0) return;
 
-        // Score candidates based on previous selection
+        // Score
         let best = candidates[0];
         let maxScore = -1;
 
@@ -954,14 +971,11 @@ const uiManager = {
             const data = LibraryManager.data.chords[k];
             const tags = data.tags || [];
 
-            // Same Shape tag?
             p_tags.forEach(pt => {
                  if(pt.includes('Shape') && tags.includes(pt)) score += 10;
                  if(pt.includes('Triad') && tags.includes(pt)) score += 5;
                  if(pt.includes('Inv') && tags.includes(pt)) score += 5;
             });
-            
-            // Prefer lower frets generally if no clear match?
             const mk = k.match(/(\d+)fr/);
             const fret = mk ? parseInt(mk[1]) : 0;
             if(fret < 5) score += 1;
@@ -997,6 +1011,7 @@ const uiManager = {
         
         let validRoot = this.selectedSelectorRoot;
         if(!roots.has(validRoot) && roots.size > 0) validRoot = 'C'; 
+        this.selectedSelectorRoot = validRoot;
 
         const rootContainer = document.getElementById('root-selector');
         if(rootContainer) {
@@ -1011,17 +1026,64 @@ const uiManager = {
             });
         }
 
-        // 2. TYPES
+        // Filter keys by Root
         const rootKeys = keys.filter(k => {
             if(!k.startsWith(validRoot)) return false;
             const remainder = k.substring(validRoot.length);
             return !['#','b'].includes(remainder[0]);
         });
 
+        // 2. CATEGORIES
+        const categories = new Set(['All']);
+        rootKeys.forEach(k => {
+            const data = chords[k];
+            if(data.tags) {
+                if(data.tags.includes('Open')) categories.add('Open');
+                if(data.tags.includes('Barre')) categories.add('Barre');
+                if(data.tags.includes('Triad')) categories.add('Triad');
+                if(data.tags.includes('Tetrad')) categories.add('Tetrad');
+            }
+        });
+
+        let validCat = this.selectedSelectorCategory || 'All';
+        if(!categories.has(validCat)) validCat = 'All';
+        this.selectedSelectorCategory = validCat;
+
+        const catContainer = document.getElementById('category-selector');
+        if(catContainer) {
+            catContainer.innerHTML = '';
+            const catOrder = ['All', 'Open', 'Barre', 'Triad', 'Tetrad'];
+            const sortedCats = Array.from(categories).sort((a,b) => {
+                 let ia = catOrder.indexOf(a);
+                 let ib = catOrder.indexOf(b);
+                 if(ia === -1) ia = 99; 
+                 if(ib === -1) ib = 99;
+                 return ia - ib;
+            });
+            
+            sortedCats.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = `selector-btn ${c === validCat ? 'selected' : ''}`;
+                // Use translations if available, simpler logic for now
+                const label = TranslationManager.t ? (TranslationManager.t(c) || c) : c;
+                btn.textContent = label;
+                btn.onclick = () => this.selectSelectorCategory(c);
+                catContainer.appendChild(btn);
+            });
+        }
+
+        // Filter keys by Category
+        const catKeys = rootKeys.filter(k => {
+            if(validCat === 'All') return true;
+            const data = chords[k];
+            return data.tags && data.tags.includes(validCat);
+        });
+
+        // 3. TYPES
         const types = new Set();
         const typeMap = {};
 
-        rootKeys.forEach(k => {
+        catKeys.forEach(k => {
             let suffix = k.substring(validRoot.length);
             let type = "Major";
             const pIdx = suffix.indexOf(' (');
@@ -1040,17 +1102,16 @@ const uiManager = {
         let validType = this.selectedSelectorType;
         const norm = t => (t === '' || t === 'Major') ? 'Major' : t;
         
-        // Basic check if validType exists in aliases
         let exists = false;
         if(types.has(validType)) exists = true;
         
         if(!exists) {
-            // Find fallback
             if(types.has('Major')) validType = 'Major';
             else if(types.has('m')) validType = 'm';
             else if(types.has('Minor')) validType = 'Minor';
             else if(types.size > 0) validType = Array.from(types)[0];
         }
+        if (validType) this.selectedSelectorType = validType;
 
         const typeContainer = document.getElementById('type-selector');
         if(typeContainer) {
@@ -1074,9 +1135,9 @@ const uiManager = {
             });
         }
 
-        // 3. VARIATIONS
+        // 4. VARIATIONS
         const varContainer = document.getElementById('variation-selector');
-        if(varContainer && typeMap[validType]) {
+        if(varContainer && validType && typeMap[validType]) {
             varContainer.innerHTML = '';
             
             typeMap[validType].sort((a,b) => {
@@ -1098,16 +1159,13 @@ const uiManager = {
                 } else {
                      label = "Default"; 
                 }
-                if(label.startsWith("Barre ")) label = label.substring(6); // Show "3fr" instead of "Barre 3fr"
-                // Or keep it? "Barre 3fr" is clear. "3fr" is also clear given the context.
+                if(label.startsWith("Barre ")) label = label.substring(6); 
                 
                 const chordData = LibraryManager.data.chords[k];
                 const tags = chordData.tags || [];
-                // Look for Shape tags
                 let tagText = "";
                 tags.forEach(t => {
                     if(t.includes('Shape')) tagText = t;
-                    if(t === 'Triad') tagText = 'Triad'; 
                 });
 
                 const btn = document.createElement('div');
