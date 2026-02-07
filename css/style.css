@@ -447,3 +447,27 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
     font-size: 0.85em;
     opacity: 0.6;
 }
+
+/* --- CHORD MONITOR (Top Center) --- */
+#chord-monitor {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 12px 32px;
+    border-radius: 99px;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    pointer-events: none;
+    letter-spacing: -0.02em;
+    text-align: center;
+    min-width: 140px;
+}

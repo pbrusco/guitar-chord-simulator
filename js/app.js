@@ -249,6 +249,29 @@ const GuitarApp = {
         window.addEventListener('resize', () => this.onResize());
     },
 
+    toggleOrientation() {
+        this.isVertical = !this.isVertical;
+
+        const isMobile = window.innerWidth <= 768;
+
+        if (this.isVertical) {
+            // Vertical Mode
+             this.camera.position.set(-2.4, 10.3, -0.3);
+             this.controls.target.set(-2.4, 0, -0.3); // Look straight down at the neck around fret 3-5?
+        } else {
+             // Default Mode
+            if (isMobile) {
+                this.camera.position.set(-0.5, 10.5, 6.0);
+                this.controls.target.set(-2.4, 0.7, 1.5);
+            } else {
+                this.camera.position.set(-0.5, 8.0, 4.0);
+                this.controls.target.set(-2.4, 0.7, -0.3);
+            }
+        }
+        this.controls.update();
+        return this.isVertical;
+    },
+
     addLights() {
         const ambient = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambient);
@@ -640,10 +663,14 @@ const GuitarApp = {
     },
 
     updateCameraInfo() {
-        const info = document.getElementById('camera-info');
-        if(!info) return;
         const p = this.camera.position;
-        info.innerHTML = `Cam: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`;
+        const text = `Cam: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`;
+        
+        const info = document.getElementById('camera-info');
+        if(info) info.innerHTML = text;
+
+        const panelInfo = document.getElementById('panel-cam-coords');
+        if(panelInfo) panelInfo.textContent = text;
     },
 
     animate() {
@@ -924,6 +951,14 @@ const uiManager = {
         this.renderSelectors();
     },
 
+    toggleOrientation() {
+        const vertical = GuitarApp.toggleOrientation();
+        const btn = document.getElementById('orient-btn');
+        if(btn) {
+            btn.style.opacity = vertical ? '1' : '0.5';
+        }
+    },
+
     toggleHandVisibility() {
         const visible = GuitarApp.toggleHand();
         const btn = document.getElementById('hand-toggle-btn');
@@ -933,7 +968,11 @@ const uiManager = {
     },
 
     updateUIForChord(name, offset) {
-        document.getElementById('current-chord-display').textContent = TranslationManager.translateChordName(name);
+        const display = document.getElementById('current-chord-display');
+        if(display) display.textContent = TranslationManager.translateChordName(name);
+
+        const monitor = document.getElementById('chord-monitor');
+        if(monitor) monitor.textContent = TranslationManager.translateChordName(name);
 
         // --- NEW SELECTOR LOGIC ---
         const notesOrder = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
