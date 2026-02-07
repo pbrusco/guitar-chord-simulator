@@ -1268,11 +1268,9 @@ const uiManager = {
         // 4. VARIATIONS
         const varContainer = document.getElementById('variation-selector');
         if(varContainer) {
-            // Hide if Beginner Mode OR only 1 option available?
-            // User requested to UNHIDE it for beginner mode for now (or maybe just keep it visible if multiple exist?)
-            // "Begginer mode still does not work, try unhidding the variant selector"
-            // Reverting logic to show it unless just 1 option
-            if (finalKeys.length <= 1) {
+            // Always show if there is at least one key, so user sees what is selected.
+            // Especially in Beginner mode to confirm "C Open" is active.
+            if (finalKeys.length === 0) {
                 varContainer.style.display = 'none';
             } else {
                 varContainer.style.display = 'flex';

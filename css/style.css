@@ -323,7 +323,17 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
         border: 1px solid var(--panel-border);
         border-radius: var(--radius-md) var(--radius-md) 0 0;
         margin-top: 8px; /* Gap from chords */
+        border-bottom: none; /* Connect to selectors */
     }
+    
+    #selector-container {
+        background: var(--panel-bg);
+        backdrop-filter: blur(12px);
+        border-left: 1px solid var(--panel-border);
+        border-right: 1px solid var(--panel-border);
+        padding: 10px 12px 0 12px !important; /* Force padding */
+    }
+
     #panel-content {
         padding: 16px;
         background: var(--panel-bg);
@@ -331,6 +341,9 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
         border: 1px solid var(--panel-border);
         border-top: none;
         border-radius: 0 0 var(--radius-md) var(--radius-md);
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
     }
     
     /* Horizontal Scroll for Chords */
