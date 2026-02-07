@@ -1396,7 +1396,19 @@ const uiManager = {
                      }
                      
                      label = clean;
-                     if(!label) label = "Standard"; 
+                     if(!label) {
+                         // Fallback: Use tags to identify
+                         const d = LibraryManager.data.chords[k];
+                         if (d && d.tags) {
+                            if(d.tags.includes('Open')) label = "Open";
+                            else if(d.tags.includes('Barre')) label = "Barre";
+                            else if(d.tags.includes('Triad')) label = "Triad";
+                            else if(d.tags.includes('Tetrad')) label = "Tetrad";
+                            else label = "Pos 1";
+                         } else {
+                             label = "Pos 1";
+                         }
+                     }
                 }
                 if(label.startsWith("Barre ")) label = label.substring(6); 
                 

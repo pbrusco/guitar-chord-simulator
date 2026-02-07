@@ -85,8 +85,8 @@ export function generateTriadChords() {
             else set = " (Set 123)"; // Default first ones
 
             if(shapeKey.includes("Root Pos") || shapeKey.includes("Root")) variant = `(Triad Root${set})`;
-            else if(shapeKey.includes("1st Inv")) variant = `(Triad Inv 1${set})`;
-            else if(shapeKey.includes("2nd Inv")) variant = `(Triad Inv 2${set})`;
+            else if(shapeKey.includes("1st Inv") || shapeKey.includes("Inv 1")) variant = `(Triad Inv 1${set})`;
+            else if(shapeKey.includes("2nd Inv") || shapeKey.includes("Inv 2")) variant = `(Triad Inv 2${set})`;
 
             const chordName = `${rootName} ${variant}`;
 
