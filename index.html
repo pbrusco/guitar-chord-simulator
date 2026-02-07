@@ -469,6 +469,11 @@
             handOffset: new THREE.Vector3(),
             palmPosition: new THREE.Vector3(-4, -1, 1.5), // Base Palm Pos
             fingerTargets: [null, null, null, null],
+            
+            // Animation State
+            actualFingerPositions: [],
+            actualKnucklePositions: [],
+            transitionSpeed: 0.15, // Speed of interpolation
 
             // Configs
             strings: [],
@@ -587,6 +592,10 @@
                     const f = new Finger(this.skinTones[i], fConfig.offset, fConfig.lengths, this.scene);
                     this.fingers.push(f);
                     this.knucklePositions.push(new THREE.Vector3());
+
+                    // Initialize interpolation vectors
+                    this.actualFingerPositions.push(new THREE.Vector3());
+                    this.actualKnucklePositions.push(new THREE.Vector3());
                 }
             },
 
@@ -709,9 +718,25 @@
                 
                 // Update IK
                 for (let i = 0; i < 4; i++) {
-                    if (this.fingerTargets[i]) {
-                        this.fingers[i].setTarget(this.fingerTargets[i]);
-                        this.fingers[i].update(this.knucklePositions[i]);
+                    const targetF = this.fingerTargets[i];
+                    const targetK = this.knucklePositions[i];
+
+                    // Only update if we have valid targets
+                    if (targetF && targetK) {
+                        
+                        // Initialization Snap (if zero)
+                        if(this.actualKnucklePositions[i].lengthSq() === 0) {
+                            this.actualKnucklePositions[i].copy(targetK);
+                            this.actualFingerPositions[i].copy(targetF);
+                        }
+
+                        // Smooth Transition (Lerp)
+                        this.actualFingerPositions[i].lerp(targetF, this.transitionSpeed);
+                        this.actualKnucklePositions[i].lerp(targetK, this.transitionSpeed);
+
+                        // Apply to IK
+                        this.fingers[i].setTarget(this.actualFingerPositions[i]);
+                        this.fingers[i].update(this.actualKnucklePositions[i]);
                     }
                 }
                 
