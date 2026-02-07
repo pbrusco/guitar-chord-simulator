@@ -716,7 +716,16 @@
                 // 3. Position Hand Base
                 const baseX = avgX + this.handOffset.x;
                 const knuckleY = -0.4 + this.handOffset.y + barreY;
-                const knuckleZ = avgZ - 1.2 + this.handOffset.z + barreZ;
+                
+                // FIXED Z-START
+                // User requirement: "Do not allow user change Z, fingers should always start at the top of the freat"
+                // We pin the knuckles to the "start" edge of the fretboard (High E side, Z ~ -0.9)
+                // We ignore avgZ (target averaging) and handOffset.z (user slider).
+                const fixedKnuckleZ = -0.95; 
+                
+                // We still allow barreZ shift if it helps reach? 
+                // Actually user said "Always start at the top". Let's stick to the fixed edge relative to neck.
+                const knuckleZ = fixedKnuckleZ; 
 
                 for (let i = 0; i < 4; i++) {
                     const config = this.fingerConfigs[i];
@@ -876,16 +885,18 @@
 
             update(knucklePos) {
                 // Bezier IK
-                const p0 = knucklePos;
-                const p2 = this.targetPos;
+                // Clone knucklePos to avoid mutating the source animation vector directly during physics correction
+                const p0 = knucklePos.clone();
+                const p2 = this.targetPos.clone(); // Clone target too just in case
                 
                 let pos;
+
                 const totalLen = this.lengths.reduce((a,b)=>a+b,0);
                 const t1 = this.lengths[0]/totalLen;
                 const t2 = (this.lengths[0] + this.lengths[1])/totalLen;
 
                 if (this.isBarre) {
-                    const barreHeight = 0.48; // Just above string height (0.35)
+                    const barreHeight = 0.42; // Low enough to intersect strings (Pressing down)
                     p2.y = barreHeight; 
                     
                     // For barre, we want a linear finger on the fretboard
@@ -912,7 +923,13 @@
                     
                     // Height arch calculation
                     mid.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
-                    mid.z -= 0.2; // Pull out slightly
+                    
+                    // Arch OUTWARDS away from the neck to avoid clipping
+                    // If hand is on Positive side (Z>0), pull mid more Positive.
+                    // If hand is on Negative side (Z<0), pull mid more Negative.
+                    // Neck center is Z~0.
+                    if (p0.z > 0) mid.z += 0.5;
+                    else mid.z -= 0.5;
 
                     // Bezier Point Calc
                     const getP = (t) => {
@@ -926,6 +943,27 @@
 
                     pos = [p0, getP(t1), getP(t2), p2];
                 }
+
+                // STRICT COLLISION COSTRAINTS
+                // 1. Z-Limit: Keep fingers within the fretboard width (Top/Low E to Bottom/High E)
+                // We use limits derived from the barre geometry: Max ~0.75 (Low E), Min ~ -0.9 (just below High E).
+                const maxZ = 0.75;
+                const minZ = -0.95;
+
+                // 2. Y-Limit: Prevent sinking into the neck
+                const safeHeight = 0.38; 
+
+                pos.forEach(p => {
+                    // Clamp Z position (Width)
+                    if(p.z > maxZ) p.z = maxZ;
+                    if(p.z < minZ) p.z = minZ;
+
+                    // Clamp Y position (Height)
+                    // Since Z is now strictly within the neck breadth, we just enforce height for all points
+                    if(p.y < safeHeight) {
+                        p.y = safeHeight;
+                    }
+                });
 
                 // Apply to meshes
                 for(let i=0; i<4; i++) this.joints[i].position.copy(pos[i]);
