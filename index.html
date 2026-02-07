@@ -807,22 +807,46 @@
                 board.receiveShadow = true;
                 this.neckGroup.add(board);
 
+                // Headstock / Nut Area Visualization
+                const headstock = new THREE.Mesh(
+                    new THREE.BoxGeometry(2.5, 0.25, 2.2),
+                    new THREE.MeshStandardMaterial({ color: 0x2e1a0f }) // Slightly darker wood
+                );
+                headstock.position.set(-8.2, -0.05, 0); // Behind nut (-6)
+                headstock.rotation.z = -0.15; // Angled back like a real headstock
+                this.neckGroup.add(headstock);
+
                 // Frets
                 const scaleLength = 12;
                 const nutX = -6;
-                for (let i = 0; i <= 12; i++) {
+                // Extend to 15 frets
+                for (let i = 0; i <= 15; i++) {
                     const dist = scaleLength - (scaleLength / Math.pow(2, i / 12));
                     const fretX = nutX + dist;
                     this.fretPositions.push(fretX);
                     
-                    const fret = new THREE.Mesh(
-                        new THREE.BoxGeometry(0.08, 0.1, 1.8),
-                        new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2 })
-                    );
-                    fret.position.set(fretX, 0.2, 0);
+                    let fret;
+                    // THE NUT (Fret 0) - Make it prominent (Bone/Ivory color, higher, wider)
+                    if (i === 0) {
+                        fret = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.25, 0.25, 2.0), // Wider, taller, full width
+                            new THREE.MeshStandardMaterial({ 
+                                color: 0xfffdd0, // Cream/Ivory
+                                roughness: 0.3 
+                            })
+                        );
+                        fret.position.set(fretX - 0.08, 0.25, 0); // Slight offset to align edge
+                    } else {
+                        // Regular Frets
+                        fret = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.08, 0.1, 1.8),
+                            new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.2 })
+                        );
+                        fret.position.set(fretX, 0.2, 0);
+                    }
                     this.neckGroup.add(fret);
 
-                    if ([3, 5, 7, 9, 12].includes(i)) {
+                    if ([3, 5, 7, 9, 12, 15].includes(i)) {
                         const dot = new THREE.Mesh(
                             new THREE.CircleGeometry(0.1, 16),
                             new THREE.MeshStandardMaterial({ color: 0xffffff })
