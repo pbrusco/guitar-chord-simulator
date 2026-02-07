@@ -163,72 +163,8 @@ const LibraryManager = {
     data: { chords: {}, offsets: {} },
 
     async init() {
-        this.loadFromStorage();
-    },
-
-    loadFromStorage() {
-        const saved = localStorage.getItem('guitarChordLibrary');
-        if (saved) {
-            try {
-                let parsed = JSON.parse(saved);
-                this.loadData(parsed);
-            } catch(e) { console.error("Corrupt library", e); this.resetDataToDefaults(); }
-        } else {
-            this.resetDataToDefaults();
-        }
-    },
-
-    loadData(parsed) {
-        if (!parsed) return;
-
-        // VALIDATION check
-        let dirty = false;
-        if(parsed.chords) {
-            for(let k in parsed.chords) {
-                if(Array.isArray(parsed.chords[k])) {
-                    parsed.chords[k] = { positions: parsed.chords[k], tags: [] };
-                    dirty = true;
-                }
-            }
-        }
-
-        this.data = parsed;
-        // Structure check
-        if(!this.data.chords) this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
-        if(!this.data.offsets) this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
-        
-        // --- FIX: Merge new defaults into saved data ---
-        // If we added new chords (like Tetrads) but user has saved data, 
-        // the new defaults wouldn't appear.
-        const defaultChords = DEFAULTS.chords;
-        let added = false;
-        for(let key in defaultChords) {
-            if(!this.data.chords[key]) {
-                this.data.chords[key] = defaultChords[key];
-                added = true;
-            }
-        }
-        if(added) this.save();
-    },
-
-    resetDataToDefaults() {
-        this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
-        this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
-    },
-
-    save() {
-        localStorage.setItem('guitarChordLibrary', JSON.stringify(this.data));
-        uiManager.renderChordButtons();
-    },
-
-    resetLibrary() {
-        if(confirm(TranslationManager.t('reset_confirm'))) {
-            localStorage.removeItem('guitarChordLibrary');
-            localStorage.removeItem('guitarHandOffsets');
-            this.resetDataToDefaults();
-            this.save();
-            window.location.reload(); 
-        }
+         this.data.chords = JSON.parse(JSON.stringify(DEFAULTS.chords));
+         this.data.offsets = JSON.parse(JSON.stringify(DEFAULTS.offsets));
     }
 };
 
@@ -372,12 +308,19 @@ const GuitarApp = {
         }
 
         // Strings
+        // Invert generation so i=0 is Top (High Z) and is Low E (Thick)
+        // i=5 is Bottom (Low Z) and is High e (Thin)
         for (let i = 0; i < 6; i++) {
-            const thickness = 0.015 + i * 0.005;
+            const thickness = 0.040 - i * 0.005; // 0.040 downto 0.015
             const yPos = 0.7 - i * 0.28;
+            
+            // Revert color usage so i=0 (Thick) gets Darker color (last in array)
+            // Array is Light->Dark. So we need last index first.
+            const colorIdx = 5 - i; 
+            
             const strMesh = new THREE.Mesh(
                 new THREE.CylinderGeometry(thickness, thickness, 13, 8),
-                new THREE.MeshStandardMaterial({ color: this.stringColors[i], metalness: 0.9, roughness: 0.3 })
+                new THREE.MeshStandardMaterial({ color: this.stringColors[colorIdx], metalness: 0.9, roughness: 0.3 })
             );
             strMesh.rotation.z = Math.PI / 2;
             strMesh.position.set(0, 0.35, yPos);
@@ -880,26 +823,12 @@ const uiManager = {
         if(GuitarApp.currentChordName) GuitarApp.updatePositions();
     },
 
-    saveCurrentOffset() {
-        const name = GuitarApp.currentChordName;
-        if(!name) return;
-        const ho = GuitarApp.handOffset;
-        LibraryManager.data.offsets[name] = { x: ho.x, y: ho.y };
-        LibraryManager.save();
-        const btn = document.querySelector(`button[onclick="uiManager.saveCurrentOffset()"]`);
-        if(btn) {
-            const old = btn.textContent;
-            btn.textContent = TranslationManager.t('saved'); 
-            setTimeout(()=>btn.textContent=old, 1000);
-        }
-    },
-
     resetCurrentOffset() {
         const name = GuitarApp.currentChordName;
         if (!DEFAULTS.offsets[name]) return; 
         const def = DEFAULTS.offsets[name];
-        LibraryManager.data.offsets[name] = { ...def };
-        LibraryManager.save();
+        LibraryManager.data.offsets[name] = { ...def }; 
+        // No save call
         GuitarApp.setChord(name); 
     },
 
@@ -1233,11 +1162,30 @@ const uiManager = {
 
         for(let s=1; s<=6; s++) {
             const lbl = stringNames[s-1].padEnd(1);
-            let line = `   ${lbl} │`;
+            
+            // Check for Open/Muted
+            // Note: chord array only contains played notes. Missing means muted/x.
+            const pos = chord.find(c => c.string === s);
+            let marker = ' ';
+            if(!pos) marker = 'x';
+            else if(pos.fret === 0) marker = 'o';
+
+            let line = ` ${marker} ${lbl} │`;
             for(let i=0; i<numCols; i++) {
                 const f = startFret + i;
                 const hit = chord.find(c => c.string === s && c.fret === f);
-                line += hit ? ` ${hit.finger+1} │` : '───│';
+                // Adjust finger display: use finger number if defined > 0, else maybe just dot?
+                // Using finger+1 (data is 0-indexed fingers 0..3) -> 1..4.
+                // Shapes.js uses finger 0=Index. Display 1.
+                // Barre logic might imply multiple fingers? No, data has explicit fingers.
+                // Thumb is T? Generally not supported yet but just in case.
+                
+                let val = '●'; // Default dot
+                if(hit && hit.finger !== undefined && hit.finger >= 0) val = (hit.finger + 1).toString();
+                // If finger is -1 (e.g. some generated?) use T or dot
+                if(hit && hit.finger === -1) val = 'T';
+
+                line += hit ? ` ${val} │` : '───│';
             }
             board += line + '\n';
         }
@@ -1264,120 +1212,10 @@ window.togglePanel = function() {
         p.style.display = 'none'; 
         b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>'; 
     }
-}
-
-window.openModal = function() {
-    document.getElementById('chordModal').style.display = 'block';
-    setupForm(); 
-}
-window.closeModal = function() { document.getElementById('chordModal').style.display = 'none'; }
-
-window.editChord = function(name) {
-    document.getElementById('chordModal').style.display = 'block';
-    document.getElementById('edit-name').value = name;
-    setupForm(name);
-}
-
-function setupForm(name) {
-    const container = document.getElementById('string-inputs');
-    if(!container) return;
-    container.innerHTML = '';
-    
-    const chordObj = name ? LibraryManager.data.chords[name] : {};
-    const positions = chordObj.positions || (Array.isArray(chordObj) ? chordObj : []);
-    const tags = chordObj.tags || [];
-
-    const tagInput = document.createElement('div');
-    tagInput.className = 'form-group';
-    tagInput.innerHTML = `
-        <label>${TranslationManager.t('tags_lbl')}</label>
-        <input type="text" id="edit-tags" value="${tags.join(', ')}" placeholder="e.g. Major, Open, Barre">
-    `;
-    container.appendChild(tagInput);
-
-    const divider = document.createElement('div');
-    divider.className = 'divider';
-    container.appendChild(divider);
-
-    const labels = ['High e', 'B', 'G', 'D', 'A', 'Low E'];
-
-    const header = document.createElement('div');
-    header.style.display = 'grid';
-    header.style.gridTemplateColumns = '60px 1fr 1fr';
-    header.style.marginBottom = '8px';
-    header.style.fontSize = '0.8rem';
-    header.style.opacity = '0.7';
-    header.innerHTML = '<span>String</span><span>Fret</span><span>Finger</span>';
-    container.appendChild(header);
-
-    for(let s=1; s<=6; s++) {
-        const note = positions.find(n => n.string === s);
-        const fret = note ? note.fret : 0;
-        const finger = note ? note.finger : -1;
-        
-        const div = document.createElement('div');
-        div.className = 'string-row';
-        div.innerHTML = `
-            <label class="string-label">${labels[s-1]}</label>
-            <input type="number" min="0" max="24" id="fret-${s}" value="${fret}" class="fret-input">
-            <select id="finger-${s}" class="finger-select">
-                <option value="-1" ${finger===-1?'selected':''}>-</option>
-                <option value="0" ${finger===0?'selected':''}>${TranslationManager.lang === 'es' ? 'Índice' : 'Index'}</option>
-                <option value="1" ${finger===1?'selected':''}>${TranslationManager.lang === 'es' ? 'Medio' : 'Middle'}</option>
-                <option value="2" ${finger===2?'selected':''}>${TranslationManager.lang === 'es' ? 'Anular' : 'Ring'}</option>
-                <option value="3" ${finger===3?'selected':''}>${TranslationManager.lang === 'es' ? 'Meñique' : 'Pinky'}</option>
-            </select>
-        `;
-        container.appendChild(div);
-    }
-    
-    const delBtn = document.getElementById('delete-chord-btn');
-    if(delBtn) {
-        if(name) {
-            delBtn.style.display = 'block';
-            delBtn.textContent = TranslationManager.t('delete');
-            delBtn.onclick = () => window.deleteChord(name);
-        } else {
-            delBtn.style.display = 'none';
-        }
-    }
-}
-
-window.saveChordFromForm = function() {
-    const name = document.getElementById('edit-name').value.trim();
-    if(!name) return alert(TranslationManager.t('name_req'));
-    
-    const tagStr = document.getElementById('edit-tags').value;
-    const tags = tagStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
-
-    const positions = [];
-    for(let s=1; s<=6; s++) {
-        const fretInput = document.getElementById(`fret-${s}`);
-        const fingerInput = document.getElementById(`finger-${s}`);
-        if(fretInput && fingerInput) {
-            const fret = parseInt(fretInput.value);
-            const finger = parseInt(fingerInput.value);
-            if(finger >= 0) positions.push({string: s, fret, finger});
-        }
-    }
-    
-    LibraryManager.data.chords[name] = { positions, tags };
-    if(!LibraryManager.data.offsets[name]) LibraryManager.data.offsets[name] = {x:0, y:0};
-    
-    LibraryManager.save();
-    window.closeModal();
-    GuitarApp.setChord(name);
-}
-
-window.deleteChord = function(name) {
-    if(confirm(TranslationManager.t('del_confirm') + name + '?')) {
-        delete LibraryManager.data.chords[name];
-        delete LibraryManager.data.offsets[name];
-        LibraryManager.save();
-        window.closeModal();
-        GuitarApp.setChord(Object.keys(LibraryManager.data.chords)[0] || 'C');
-    }
 };
+
+
+// Removed Modal Logic
 
 // --- BOOTSTRAP ---
 (async function bootstrap() {
@@ -1385,7 +1223,7 @@ window.deleteChord = function(name) {
         await LibraryManager.init();
         GuitarApp.init();
 
-        uiManager.renderChordButtons();
+        uiManager.renderSelectors();
 
         const keys = Object.keys(LibraryManager.data.chords);
         const firstChord = keys.length > 0 ? keys[0] : 'C'; 

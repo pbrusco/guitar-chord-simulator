@@ -63,7 +63,11 @@ export function generateBarreChords() {
 
 export function generateTriadChords() {
     const library = {};
-    const shapes = ['Triad Major (Root Pos)', 'Triad Major (1st Inv)', 'Triad Major (2nd Inv)'];
+    const shapes = [
+        'Triad Major (Root Pos)', 'Triad Major (1st Inv)', 'Triad Major (2nd Inv)',
+        'Triad Major (Set 3-4-5 Root)', 'Triad Major (Set 3-4-5 Inv 1)', 'Triad Major (Set 3-4-5 Inv 2)',
+        'Triad Major (Set 4-5-6 Root)', 'Triad Major (Set 4-5-6 Inv 1)', 'Triad Major (Set 4-5-6 Inv 2)'
+    ];
 
     shapes.forEach(shapeKey => {
         const shape = SHAPES[shapeKey];
@@ -72,23 +76,24 @@ export function generateTriadChords() {
         for(let f=1; f<=12; f++) {
             const rootName = getNoteName(shape.rootString, f);
             
-            // Name needs to differentiate inversions
-            // "C (Triad Inv 1)" style from original file
-            // Let's standardise: 
-            // Root Pos -> "(Triad Root)"
-            // 1st Inv -> "(Triad Inv 1)"
-            // 2nd Inv -> "(Triad Inv 2)"
+            // Generate variant name
             let variant = "";
-            if(shapeKey.includes("Root Pos")) variant = "(Triad Root)";
-            else if(shapeKey.includes("1st Inv")) variant = "(Triad Inv 1)";
-            else if(shapeKey.includes("2nd Inv")) variant = "(Triad Inv 2)";
+            let set = "";
+            
+            if(shapeKey.includes("Set 3-4-5")) set = " (Set 345)";
+            else if(shapeKey.includes("Set 4-5-6")) set = " (Set 456)";
+            else set = " (Set 123)"; // Default first ones
+
+            if(shapeKey.includes("Root Pos") || shapeKey.includes("Root")) variant = `(Triad Root${set})`;
+            else if(shapeKey.includes("1st Inv")) variant = `(Triad Inv 1${set})`;
+            else if(shapeKey.includes("2nd Inv")) variant = `(Triad Inv 2${set})`;
 
             const chordName = `${rootName} ${variant}`;
 
             let valid = true;
             const positions = shape.offsets.map(p => {
                 const absFret = f + p.fret;
-                if(absFret < 0) valid = false; // Cannot have negative fret
+                if(absFret < 0) valid = false; 
                 return {
                     string: p.string,
                     fret: absFret,
@@ -114,7 +119,9 @@ export function generateTetradChords() {
         'Tetrad 7 (Root on 4)', 
         'Tetrad m7 (Root on 4)', 
         'Tetrad m7b5 (Root on 4)',
-        'Tetrad dim7 (Root on 4)'
+        'Tetrad dim7 (Root on 4)',
+        'Tetrad Maj7 (Root on 6)', 'Tetrad m7 (Root on 6)', 'Tetrad 7 (Root on 6)',
+        'Tetrad Maj7 (Root on 5)', 'Tetrad m7 (Root on 5)', 'Tetrad 7 (Root on 5)'
     ];
 
     shapes.forEach(shapeKey => {
@@ -129,12 +136,16 @@ export function generateTetradChords() {
             if(shapeKey.includes("Maj7")) type = "Maj7";
             else if(shapeKey.includes("m7b5")) type = "m7b5";
             else if(shapeKey.includes("dim7")) type = "dim7";
-            else if(shapeKey.includes("m7")) type = "m7"; // Check m7 AFTER m7b5 to avoid partial match
+            else if(shapeKey.includes("m7")) type = "m7"; 
             else if(shapeKey.includes(" 7 ")) type = "7";
 
-            // Format: "D Maj7 (Tetrad)"
-            // Or "Dmaj7 (Tetrad)"
-            const chordName = `${rootName}${type} (Tetrad)`;
+            let voicing = "";
+            if(shapeKey.includes("Root on 6")) voicing = " R6";
+            else if(shapeKey.includes("Root on 5")) voicing = " R5";
+            else if(shapeKey.includes("Root on 4")) voicing = " R4";
+
+            // Format: "D Maj7 (Tetrad R6)"
+            const chordName = `${rootName}${type} (Tetrad${voicing})`;
 
             let valid = true;
             const positions = shape.offsets.map(p => {

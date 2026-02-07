@@ -39,10 +39,6 @@
             
             <div id="variation-selector" class="variation-list" style="margin-bottom: 16px;"></div>
 
-            <button id="manage-btn" class="btn btn-secondary btn-full" onclick="openModal()">
-                <span data-i18n="add_custom">➕ Add Custom</span>
-            </button>
-
             <!-- Active Chord Info -->
             <div id="chord-diagram">
                 <h4 data-i18n="finger_pos">📍 Finger Positions</h4>
@@ -68,7 +64,6 @@
                 </div>
                 
                 <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px;">
-                    <button onclick="uiManager.saveCurrentOffset()" class="btn btn-primary" data-i18n="save_offset">Save Offset</button>
                     <button onclick="uiManager.resetCurrentOffset()" class="btn btn-secondary icon-btn" title="Reset">↺</button>
                 </div>
             </div>
