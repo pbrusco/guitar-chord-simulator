@@ -4,213 +4,330 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guitar Hand Simulator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg-color: #1a1a2e;
-            --panel-bg: rgba(0,0,0,0.85);
-            --accent-color: #4CAF50;
-            --active-color: #2196F3;
-            --text-color: #ffffff;
-            --text-muted: #aaaaaa;
+            /* Palette */
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary: #64748b;
+            --accent: #10b981;
+            --danger: #ef4444;
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            
+            --radius-md: 12px;
+            --radius-sm: 6px;
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
         }
+
+        * { box-sizing: border-box; }
+
         body { 
             margin: 0; 
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
+            color: var(--text-main);
             width: 100vw;
             height: 100vh;
         }
+
         canvas { 
             display: block; 
             position: absolute; 
-            top: 0; 
-            left: 0; 
-            z-index: 0; 
+            top: 0; left: 0; z-index: 0; 
         }
-        
-        /* Main UI Panel */
+
+        /* --- UI UTILS --- */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* --- CONTROLS PANEL --- */
         #controls {
             position: absolute;
             z-index: 10;
-            top: 20px;
-            left: 20px;
-            background: var(--panel-bg);
-            color: var(--text-color);
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 320px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            scrollbar-width: thin;
+            top: 24px; left: 24px;
+            width: 340px;
+            max-height: calc(100vh - 48px);
+            display: flex;
+            flex-direction: column;
+            padding: 0; /* Content padding handled inside */
+            overflow: hidden; /* Clear floats/margins */
         }
-        #controls h3 { margin: 0; font-size: 1.1em; }
-        .header-row {
+        
+        .panel-header {
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--panel-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
         }
-        
-        /* Buttons */
-        .btn {
-            border: none;
-            border-radius: 4px;
+        .panel-header h3 { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+
+        /* Icon Button */
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--panel-border);
+            color: var(--text-muted);
+            width: 28px; height: 28px;
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            padding: 8px 12px;
-            font-size: 14px;
-            transition: background 0.2s;
-            color: white;
+            transition: all 0.2s ease;
         }
-        .btn:hover { opacity: 0.9; }
+        .icon-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        #panel-content {
+            padding: 20px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) transparent;
+        }
         
-        #toggle-btn {
-            background: rgba(255,255,255,0.2);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            line-height: 1;
-            padding: 0;
+        /* Custom Scrollbar */
+        #panel-content::-webkit-scrollbar { width: 6px; }
+        #panel-content::-webkit-scrollbar-thumb { background-color: var(--secondary); border-radius: 4px; }
+        #panel-content::-webkit-scrollbar-track { bg: transparent; }
+
+        /* --- CHORD GRID --- */
+        #chord-buttons-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 8px;
+            margin-bottom: 20px;
         }
-        #toggle-btn:hover { background: rgba(255,255,255,0.3); }
 
         .chord-btn {
-            background: var(--accent-color);
-            margin: 4px;
-            font-size: 15px;
-            flex-grow: 1;
-            min-width: 60px;
+            background-color: rgba(255,255,255,0.05);
+            border: 1px solid transparent;
+            color: var(--text-main);
+            padding: 10px 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
         }
-        .chord-btn.active { background: var(--active-color); }
-        
-        #manage-btn { background: #455a64; width: 100%; margin-top: 10px; }
+        .chord-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+            transform: translateY(-1px);
+        }
+        .chord-btn.active {
+            background-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            border-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
 
-        /* Chord Diagram & Info */
-        #info {
-            position: absolute;
-            z-index: 10;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 5px;
-            pointer-events: none;
+        /* --- ACTION BUTTONS --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            gap: 6px;
         }
-        #chord-diagram {
-            margin-top: 15px;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            font-family: monospace;
-        }
-        #chord-diagram h4 { margin: 0 0 10px 0; color: var(--accent-color); }
+        .btn-full { width: 100%; }
+        .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text-main); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); }
         
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.3); }
+
+        /* --- DIAGRAM & DEBUG --- */
+        #chord-diagram {
+            margin-top: 24px;
+            background: rgba(0,0,0,0.2);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            border: 1px solid var(--panel-border);
+        }
+        #chord-diagram h4 { margin: 0 0 12px 0; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+
         .finger-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 0.9em;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 13px;
         }
-        .string-diagram pre { margin: 10px 0 0 0; color: #ccc; font-size: 13px; }
+        .finger-row:last-child { border-bottom: none; }
+        .finger-name { color: var(--text-muted); }
+        .finger-pos { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 
-        /* Debug / Hand Position Controls */
+        .string-diagram pre {
+            margin: 12px 0 0 0;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
         #debug-controls {
-            margin-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.2);
-            padding-top: 10px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--panel-border);
         }
-        .control-row { display: flex; align-items: center; margin-bottom: 5px; }
-        .control-row label { width: 20px; color: var(--text-muted); }
-        .control-row input { flex-grow: 1; margin: 0 10px; }
-        .control-row span { width: 35px; text-align: right; font-family: monospace; }
+        .control-row { display: flex; align-items: center; margin-bottom: 12px; font-size: 13px; }
+        .control-row label { width: 24px; font-weight: 500; color: var(--text-muted); }
+        .control-row span { width: 40px; text-align: right; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; color: var(--text-main); }
+        
+        /* Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            margin: 0 12px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 14px; width: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            -webkit-appearance: none;
+            margin-top: -5px;
+            box-shadow: 0 0 0 2px var(--bg-color);
+            cursor: grab;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
 
-        /* Modal */
+        /* --- MODAL --- */
         .modal {
             display: none;
             position: fixed;
             z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px);
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
         }
         .modal-content {
-            background-color: #222;
-            margin: 5% auto;
-            padding: 25px;
-            border: 1px solid #444;
-            width: 90%;
-            max-width: 500px;
-            color: white;
-            border-radius: 8px;
-            max-height: 85vh;
-            overflow-y: auto;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close:hover { color: white; }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
-            background: #333;
-            border: 1px solid #555;
-            color: white;
-            border-radius: 4px;
-        }
-        .string-row { 
-            display: grid; 
-            grid-template-columns: 80px 1fr 1fr; 
-            gap: 10px; 
-            align-items: center; 
-            margin-bottom: 8px; 
-            background: rgba(255,255,255,0.05);
-            padding: 5px;
-            border-radius: 4px;
-        }
-        .string-row label { margin: 0; font-weight: bold; color: #ccc;}
-        
-        .modal-actions {
-            border-bottom: 1px solid #444;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            background-color: #1e293b;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            width: 90%; max-width: 520px;
+            max-height: 90vh;
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            box-shadow: 20px 20px 50px rgba(0,0,0,0.5);
+            animation: modalSlide 0.3s ease-out;
         }
+        @keyframes modalSlide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--panel-border);
+            background: rgba(0,0,0,0.1);
+            display: flex; gap: 12px;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 500; text-transform: uppercase; color: var(--text-muted); }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f172a;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            color: white;
+            font-family: inherit; font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+        .string-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
+        .string-row:hover { border-color: var(--panel-border); }
+        
+        .import-export-bar {
+            background: rgba(255,255,255,0.03);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .reset-btn { grid-column: span 2; }
     </style>
 </head>
 <body>
 
     <!-- CONTROL PANEL -->
-    <div id="controls">
-        <div class="header-row">
+    <div id="controls" class="glass-panel">
+        <div class="panel-header">
             <h3>🎸 Hand Simulator</h3>
-            <button id="toggle-btn" onclick="togglePanel()" class="btn">−</button>
+            <button id="toggle-btn" onclick="togglePanel()" class="icon-btn" title="Toggle Panel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
         </div>
         
         <div id="panel-content">
             <!-- Chord Buttons Grid -->
-            <div id="chord-buttons-container" style="display: flex; flex-wrap: wrap;"></div>
+            <div id="chord-buttons-container"></div>
             
-            <button id="manage-btn" class="btn" onclick="openModal()">⚙️ Manage Chords Library</button>
+            <button id="manage-btn" class="btn btn-secondary btn-full" onclick="openModal()">
+                <span>⚙️</span> Manage Library
+            </button>
 
             <!-- Active Chord Info -->
             <div id="chord-diagram">
@@ -223,23 +340,22 @@
 
             <!-- Hand Transformation Controls -->
             <div id="debug-controls">
-                <h4 style="margin: 0 0 10px 0; color: #ff9800;">🛠 Hand Position</h4>
+                <h4 style="margin: 0 0 16px 0; color: var(--text-main); font-size: 13px;">🛠 Hand Adjustment</h4>
                 
                 <div class="control-row">
-                    <label>X:</label>
+                    <label>X</label>
                     <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('x', this.value)">
                     <span id="offset-x">0.0</span>
                 </div>
                 <div class="control-row">
-                    <label>Y:</label>
+                    <label>Y</label>
                     <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('y', this.value)">
                     <span id="offset-y">0.0</span>
                 </div>
-                <!-- Z-axis locked logic -->
                 
-                <div style="margin-top: 15px; display: flex; gap: 10px;">
-                    <button onclick="uiManager.saveCurrentOffset()" class="btn" style="background: #ff9800; flex-grow: 1; font-weight: bold;">Save Position</button>
-                    <button onclick="uiManager.resetCurrentOffset()" class="btn" style="background: #444;">↺</button>
+                <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px;">
+                    <button onclick="uiManager.saveCurrentOffset()" class="btn btn-primary">Save Offset</button>
+                    <button onclick="uiManager.resetCurrentOffset()" class="btn btn-secondary icon-btn" title="Reset">↺</button>
                 </div>
             </div>
         </div>
@@ -253,30 +369,45 @@
 
     <!-- MODAL -->
     <div id="chordModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2>Manage Library</h2>
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2>Manage Library</h2>
+                <button class="icon-btn" onclick="closeModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
             
-            <div class="modal-actions">
-                <button class="btn" onclick="libraryManager.exportLibrary()" style="background: #555;">💾 Export YAML</button>
-                <button class="btn" onclick="document.getElementById('importFile').click()" style="background: #555;">📂 Import YAML</button>
-                <button class="btn" onclick="libraryManager.resetLibrary()" style="background: #d32f2f; margin-left: auto;">Reset Defaults</button>
-                <input type="file" id="importFile" style="display:none" onchange="libraryManager.importLibrary(this)">
+            <div class="modal-body">
+                <div class="import-export-bar">
+                    <button class="btn btn-secondary" onclick="libraryManager.exportLibrary()">
+                        <span>💾</span> Export
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
+                        <span>📂</span> Import
+                    </button>
+                    <button class="btn btn-secondary" onclick="libraryManager.resetLibrary()" style="margin-left: auto;">
+                        Reset
+                    </button>
+                    <input type="file" id="importFile" style="display:none" onchange="libraryManager.importLibrary(this)">
+                </div>
+
+                <div class="divider"></div>
+
+                <h3>Chord Editor</h3>
+                <div class="form-group">
+                    <label>Chord Name</label>
+                    <input type="text" id="edit-name" placeholder="e.g. Bm7">
+                </div>
+
+                <div id="string-inputs">
+                    <!-- Generated by JS -->
+                </div>
             </div>
 
-            <h3 style="color: var(--accent-color);">Editor</h3>
-            <div class="form-group">
-                <label>Chord Name</label>
-                <input type="text" id="edit-name" placeholder="e.g. Bm7">
-            </div>
-
-            <div id="string-inputs">
-                <!-- Generated by JS -->
-            </div>
-
-            <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button class="btn" onclick="saveChordFromForm()" style="background: var(--accent-color); flex-grow: 1; padding: 12px;">Save Chord</button>
-                <button class="btn" id="delete-chord-btn" onclick="deleteChord()" style="background: #d32f2f; display:none;">Delete</button>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="delete-chord-btn" onclick="deleteChord()" style="display:none; color: #ff6b6b;">Delete</button>
+                <div style="flex-grow: 1;"></div>
+                <button class="btn btn-primary" onclick="saveChordFromForm()">Save Changes</button>
             </div>
         </div>
     </div>
@@ -1125,8 +1256,13 @@
         window.togglePanel = function() {
             const p = document.getElementById('panel-content');
             const b = document.getElementById('toggle-btn');
-            if(p.style.display==='none') { p.style.display='block'; b.textContent='−'; }
-            else { p.style.display='none'; b.textContent='+'; }
+            if(p.style.display === 'none') { 
+                p.style.display = 'block'; 
+                b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>'; 
+            } else { 
+                p.style.display = 'none'; 
+                b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>'; 
+            }
         }
 
         window.openModal = function() {
@@ -1153,12 +1289,27 @@
             const tagInput = document.createElement('div');
             tagInput.className = 'form-group';
             tagInput.innerHTML = `
-                <label>Tags (comma separated)</label>
+                <label>Tags</label>
                 <input type="text" id="edit-tags" value="${tags.join(', ')}" placeholder="e.g. Major, Open, Barre">
             `;
             container.appendChild(tagInput);
 
+            // Divider
+            const divider = document.createElement('div');
+            divider.className = 'divider';
+            container.appendChild(divider);
+
             const labels = ['High e', 'B', 'G', 'D', 'A', 'Low E'];
+
+            // Header for strings
+            const header = document.createElement('div');
+            header.style.display = 'grid';
+            header.style.gridTemplateColumns = '60px 1fr 1fr';
+            header.style.marginBottom = '8px';
+            header.style.fontSize = '0.8rem';
+            header.style.opacity = '0.7';
+            header.innerHTML = '<span>String</span><span>Fret</span><span>Finger</span>';
+            container.appendChild(header);
 
             for(let s=1; s<=6; s++) {
                 const note = positions.find(n => n.string === s);
@@ -1168,9 +1319,9 @@
                 const div = document.createElement('div');
                 div.className = 'string-row';
                 div.innerHTML = `
-                    <label>${labels[s-1]}</label>
-                    <input type="number" min="0" max="24" id="fret-${s}" value="${fret}">
-                    <select id="finger-${s}">
+                    <label class="string-label">${labels[s-1]}</label>
+                    <input type="number" min="0" max="24" id="fret-${s}" value="${fret}" class="fret-input">
+                    <select id="finger-${s}" class="finger-select">
                         <option value="-1" ${finger===-1?'selected':''}>-</option>
                         <option value="0" ${finger===0?'selected':''}>Index</option>
                         <option value="1" ${finger===1?'selected':''}>Middle</option>
