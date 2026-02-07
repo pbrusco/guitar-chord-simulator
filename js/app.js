@@ -15,6 +15,8 @@ const TranslationManager = {
     dict: {
         en: {
             title: "🎸 Hand Simulator",
+            "beginner": "🎓 Beginner",
+            "advanced": "🚀 Advanced",
             add_custom: "➕ Add Custom",
             finger_pos: "📍 Finger Positions",
             hand_adj: "🛠 Hand Adjustment",
@@ -71,6 +73,7 @@ const TranslationManager = {
             "Root-Pos": "Pos-Raíz", "1st-Inv": "1ª Inv", "2nd-Inv": "2ª Inv",
             "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "maj7": "Maj7", "m7": "m7",
             "beginner": "🎓 Principiante",
+            "advanced": "🚀 Avanzado",
             // Chord Types
             "m": "m", "7": "7"
         }
@@ -236,6 +239,7 @@ const GuitarApp = {
 
         this.addLights();
         this.buildNeck();
+        this.buildBody(); // Add Guitar Body
         this.buildHand();
         
         this.updateCameraInfo();
@@ -350,6 +354,86 @@ const GuitarApp = {
             this.neckGroup.add(strMesh);
             this.strings.push({ mesh: strMesh, y: yPos });
         }
+    },
+
+    buildBody() {
+        // Acoustic Guitar Body Shape
+        const shape = new THREE.Shape();
+
+        // Points for the right half (Upper Bout -> Waist -> Lower Bout)
+        // Shifted to start around Fret 13 (approx X=0.5) and match string length (Bridge at X=6)
+        
+        // Start
+        shape.moveTo(0.5, 0.8);
+        
+        // Upper Bout
+        shape.bezierCurveTo(1.5, 2.5, 3.0, 2.8, 3.5, 1.4); 
+        
+        // Waist
+        shape.bezierCurveTo(3.8, 0.8, 4.2, 0.8, 4.5, 1.8);
+        
+        // Lower Bout top half (Bridge area)
+        shape.bezierCurveTo(5.0, 3.2, 8.0, 3.2, 9.5, 0); 
+        
+        // Mirror for bottom half
+        shape.bezierCurveTo(8.0, -3.2, 5.0, -3.2, 4.5, -1.8); // Lower Bout bottom half
+        shape.bezierCurveTo(4.2, -0.8, 3.8, -0.8, 3.5, -1.4); // Waist
+        shape.bezierCurveTo(3.0, -2.8, 1.5, -2.5, 0.5, -0.8); // Upper Bout
+        
+        shape.lineTo(0.5, 0.8); // Close
+
+        const extrudeSettings = { 
+            depth: 2.0, 
+            bevelEnabled: true, 
+            bevelSegments: 4, 
+            steps: 2, 
+            bevelSize: 0.2, 
+            bevelThickness: 0.1 
+        };
+
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0x5c3a21, // Wood
+            roughness: 0.2,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+
+        const bodyMesh = new THREE.Mesh(geometry, material);
+        
+        // Orient & Position
+        bodyMesh.rotation.x = Math.PI / 2; // Lie flat
+        bodyMesh.position.y = -0.15; 
+        
+        this.neckGroup.add(bodyMesh);
+
+        // Soundhole
+        // Black circle on top surface
+        const hole = new THREE.Mesh(
+            new THREE.CircleGeometry(1.3, 32),
+            new THREE.MeshStandardMaterial({ color: 0x0a0505, roughness: 1 })
+        );
+        hole.rotation.x = -Math.PI / 2;
+        hole.position.set(3.5, -0.14, 0); // Moved to X=3.5
+        this.neckGroup.add(hole);
+
+        // Bridge
+        const bridge = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 0.2, 3.0), // Swapped dimensions because rotation? No, box is axis aligned.
+            // Width(X)=1.5, Height(Y)=0.2, Depth(Z)=3.0 (across strings)
+            new THREE.MeshStandardMaterial({ color: 0x2e1a0f })
+        );
+        bridge.position.set(6.0, -0.05, 0); // At X=6 (Scale End)
+        this.neckGroup.add(bridge);
+        
+        // Saddle (white part on bridge)
+        const saddle = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.25, 2.5), 
+            new THREE.MeshStandardMaterial({ color: 0xffffee })
+        );
+        saddle.position.set(6.0, 0.05, 0);
+        saddle.rotation.y = -0.05; // Compensation angle
+        this.neckGroup.add(saddle);
     },
 
     buildHand() {
@@ -777,15 +861,31 @@ const uiManager = {
     selectedSelectorRoot: 'C',
     selectedSelectorType: 'Major',
     selectedSelectorCategory: 'All', // New State
-    beginnerMode: false,
+    beginnerMode: true,
 
     toggleBeginnerMode() {
         this.beginnerMode = !this.beginnerMode;
         
         const btn = document.getElementById('beginner-btn');
         if(btn) {
-           btn.style.opacity = this.beginnerMode ? '1' : '0.5';
-           // btn.innerHTML = this.beginnerMode ? '🎓 Beginner' : '<span style="filter:grayscale(1)">🎓</span> Beginner';
+           // btn.style.opacity = this.beginnerMode ? '1' : '0.5';
+           // Update Text Based on Mode
+           // If Beginner Mode ON -> Show "Beginner" text
+           // If Beginner Mode OFF (Advanced) -> Show "Advanced" text (or both as a toggle?)
+           // User wants: "start in beginner mode (and call the other mode 'advanced')"
+           
+           if (this.beginnerMode) {
+               btn.innerHTML = TranslationManager.t("beginner");
+               btn.style.opacity = '1';
+               btn.style.backgroundColor = ''; // Default transparent/border
+               btn.style.borderColor = '#4ADE80'; // Greenish for beginner
+               btn.style.color = '#4ADE80';
+           } else {
+               btn.innerHTML = TranslationManager.t("advanced");
+               btn.style.opacity = '1'; // Full opacity for active "Advanced" state
+               btn.style.borderColor = '#F472B6'; // Pinkish for advanced
+               btn.style.color = '#F472B6';
+           }
         }
         
         // Reset selection if switching TO beginner mode
@@ -1319,13 +1419,30 @@ window.togglePanel = function() {
 (async function bootstrap() {
     try {
         await LibraryManager.init();
+        
+        // Force Spanish Config on Load
+        TranslationManager.setLang('es');
+        
         GuitarApp.init();
+
+        // Apply Beginner Mode Default UI State (Button Text etc)
+        // Since setLang updates UI, we need to make sure the button has correct text/style.
+        // We can just call toggleBeginnerMode twice? No, that would toggle logic.
+        // Let's manually set the button state match defaults.
+        const btn = document.getElementById('beginner-btn');
+        if(btn) {
+           // Default is beginnerMode=true
+           btn.innerHTML = TranslationManager.t("beginner");
+           btn.style.opacity = '1';
+           btn.style.borderColor = '#4ADE80';
+           btn.style.color = '#4ADE80';
+        }
 
         uiManager.renderSelectors();
 
         const keys = Object.keys(LibraryManager.data.chords);
         const firstChord = keys.length > 0 ? keys[0] : 'C'; 
-        GuitarApp.setChord(firstChord);
+        GuitarApp.setChord('C Open'); // Force C Open for beginner start
 
         if (window.innerWidth <= 768) {
             window.togglePanel();
