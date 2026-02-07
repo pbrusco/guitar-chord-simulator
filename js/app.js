@@ -1125,7 +1125,7 @@ const uiManager = {
             
             // Sync Inversion if visible
             if (this.selectedSelectorCategory === 'Triad' || this.selectedSelectorCategory === 'Tetrad') {
-                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', '3rd-Inv', 'Drop2', 'Drop3'];
                 let foundInv = 'All';
                 for (const t of chordData.tags) {
                     if (invTagList.includes(t)) {
@@ -1167,6 +1167,16 @@ const uiManager = {
         GuitarApp.setChord(name); 
     },
 
+    ensurePanelOpen() {
+        const p = document.getElementById('panel-content');
+        if(p && p.style.display === 'none') {
+             // Only auto-open on mobile/constrained views where it might be hidden
+             if (window.innerWidth <= 768) {
+                 window.togglePanel();
+             }
+        }
+    },
+
     selectSelectorRoot(root) {
         this.selectedSelectorRoot = root;
         this.renderSelectors();
@@ -1182,11 +1192,12 @@ const uiManager = {
         // Reset Inversion when category changes
         this.selectedSelectorInversion = 'All';
         this.renderSelectors();
-        // Maybe try to select the first chord in this category?
+        this.ensurePanelOpen();
     },
     selectSelectorInversion(inv) {
         this.selectedSelectorInversion = inv;
         this.renderSelectors();
+        this.ensurePanelOpen();
     },
 
     tryAutoSelectChord() {
@@ -1475,7 +1486,7 @@ const uiManager = {
                 
                 // Collect specific inversion tags from the currently filtered keys
                 const inversions = new Set();
-                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', '3rd-Inv', 'Drop2', 'Drop3'];
                 
                 catKeys.forEach(k => {
                     const data = chords[k];
@@ -1486,7 +1497,7 @@ const uiManager = {
                     }
                 });
 
-                const invOrder = ['Root-Pos', '1st-Inv', '2nd-Inv', 'Drop2', 'Drop3'];
+                const invOrder = ['Root-Pos', '1st-Inv', '2nd-Inv', '3rd-Inv', 'Drop2', 'Drop3'];
                 const sortedInvs = Array.from(inversions).sort((a,b) => {
                     let ia = invOrder.indexOf(a);
                     let ib = invOrder.indexOf(b);
@@ -1533,7 +1544,7 @@ const uiManager = {
             if (finalKeys.length === 0) {
                 varContainer.style.display = 'none';
             } else {
-                varContainer.style.display = 'flex';
+                varContainer.style.display = ''; // Revert to CSS (grid)
             }
 
             varContainer.innerHTML = '';
