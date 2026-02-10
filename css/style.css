@@ -476,3 +476,42 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
     text-align: center;
     min-width: 140px;
 }
+
+/* --- NEW LAYOUT ADJUSTMENTS --- */
+#sidebar-container {
+    pointer-events: none;
+    z-index: 100; /* Ensure on top */
+    max-height: calc(100vh - 48px);
+}
+#sidebar-container > * {
+    pointer-events: auto;
+}
+
+@media (max-width: 600px) {
+    #sidebar-container {
+        top: auto !important;
+        bottom: 12px;
+        left: 12px; 
+        right: 12px;
+        width: auto !important;
+        max-width: none; 
+        gap: 8px;
+        flex-direction: column-reverse;
+    }
+    
+    #action-bar {
+        /* On mobile, put action bar at bottom or top of the stack? */
+        /* If column-reverse, action bar is at bottom. */
+        order: 10;
+        margin-top: 0;
+        padding: 8px;
+    }
+    .action-buttons {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    #chord-panel, #adjustment-panel {
+        max-height: 40vh;
+    }
+}

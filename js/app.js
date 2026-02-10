@@ -1072,6 +1072,50 @@ const uiManager = {
         }
     },
 
+    toggleChordPanel() {
+        const p = document.getElementById('chord-panel');
+        const b = document.getElementById('toggle-chord-panel-btn');
+        if(!p) return;
+        
+        if(p.style.display === 'none') { 
+            p.style.display = 'flex'; 
+            if(b) {
+                b.style.opacity = '1';
+                b.style.color = 'var(--primary)';
+                b.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+            }
+        } else { 
+            p.style.display = 'none'; 
+             if(b) {
+                 b.style.opacity = '0.5';
+                 b.style.color = 'var(--text-muted)';
+                 b.style.backgroundColor = 'transparent';
+             }
+        }
+    },
+    
+    toggleAdjustmentPanel() {
+        const p = document.getElementById('adjustment-panel');
+        const b = document.getElementById('toggle-adjust-panel-btn');
+        if(!p) return;
+        
+        if(p.style.display === 'none') { 
+            p.style.display = 'block'; 
+            if(b) {
+                b.style.opacity = '1';
+                b.style.color = 'var(--primary)';
+                b.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+            }
+        } else { 
+            p.style.display = 'none'; 
+            if(b) {
+                b.style.opacity = '0.5';
+                b.style.color = 'var(--text-muted)';
+                b.style.backgroundColor = 'transparent';
+            }
+        }
+    },
+
     updateUIForChord(name, offset) {
         const display = document.getElementById('current-chord-display');
         if(display) display.textContent = TranslationManager.translateChordName(name);
@@ -1168,11 +1212,11 @@ const uiManager = {
     },
 
     ensurePanelOpen() {
-        const p = document.getElementById('panel-content');
+        const p = document.getElementById('adjustment-panel');
         if(p && p.style.display === 'none') {
              // Only auto-open on mobile/constrained views where it might be hidden
              if (window.innerWidth <= 768) {
-                 window.togglePanel();
+                 this.toggleAdjustmentPanel();
              }
         }
     },
@@ -1713,17 +1757,9 @@ window.libraryManager = LibraryManager;
 window.uiManager = uiManager;
 
 // Modal Logic Globals
-window.togglePanel = function() {
-    const p = document.getElementById('panel-content');
-    const b = document.getElementById('toggle-btn');
-    if(p.style.display === 'none') { 
-        p.style.display = 'block'; 
-        b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>'; 
-    } else { 
-        p.style.display = 'none'; 
-        b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>'; 
-    }
-};
+// togglePanel removed in favor of uiManager methods
+window.togglePanel = function() { console.warn("togglePanel is deprecated"); };
+
 
 
 // Removed Modal Logic
@@ -1757,9 +1793,9 @@ window.togglePanel = function() {
         const firstChord = keys.length > 0 ? keys[0] : 'C'; 
         GuitarApp.setChord('C Open'); // Force C Open for beginner start
 
-        if (window.innerWidth <= 768) {
-            window.togglePanel();
-        }
+        // if (window.innerWidth <= 768) {
+        //     window.togglePanel();
+        // }
     } catch(e) {
         console.error("Bootstrap failed:", e);
         alert("App startup failed: " + e);
