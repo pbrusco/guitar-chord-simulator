@@ -14,8 +14,18 @@
 </head>
 <body>
 
-    <!-- CHORD MONITOR -->
-    <div id="chord-monitor">C</div>
+    <!-- TOP MONITOR CONTAINER -->
+    <div id="top-monitor-container">
+        <div id="chord-monitor">C</div>
+        
+        <!-- Moved Chord Diagram -->
+        <div id="chord-diagram" class="glass-panel">
+            <div id="finger-list"></div> 
+            <div class="string-diagram">
+                <div id="fretboard-text"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- SIDEBAR CONTAINER -->
     <div id="sidebar-container" style="position: absolute; top: 24px; left: 24px; display: flex; flex-direction: column; gap: 12px; width: 340px; pointer-events: none; z-index: 10;">
@@ -53,6 +63,7 @@
                 <div id="root-selector" class="scroll-row"></div>
                 <div id="type-selector" class="scroll-row"></div>
                 <div id="category-selector" class="scroll-row" style="margin-bottom: 0px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;"></div>
+                <div id="bass-selector" class="scroll-row" style="margin-bottom: 0px; display: none;"></div>
                 <div id="inversion-selector" class="scroll-row" style="margin-bottom: 8px; display: none;"></div>
             </div>
             
@@ -67,15 +78,6 @@
             </div>
 
             <div id="panel-content">
-                <!-- Active Chord Info -->
-                <div id="chord-diagram" style="margin-top: 0; border: none; background: transparent; padding: 0;">
-                    <h4 data-i18n="finger_pos">📍 Finger Positions</h4>
-                    <div id="finger-list"></div>
-                    <div class="string-diagram">
-                        <div id="fretboard-text"></div>
-                    </div>
-                </div>
-
                 <!-- Hand Transformation Controls -->
                 <div id="debug-controls">
                     <div class="control-row">

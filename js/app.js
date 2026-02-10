@@ -95,14 +95,39 @@ const TranslationManager = {
                  el.textContent = this.dict[lang][key];
             }
         });
+        
+        // Update Beginner Button text manually if needed
+        const bgBtn = document.getElementById('beginner-btn');
+        if(bgBtn) {
+           bgBtn.innerHTML = this.t(uiManager.beginnerMode ? "beginner" : "advanced");
+        }
 
         // Re-render Components
-        uiManager.renderChordButtons();
+        uiManager.renderSelectors(); // This will refresh the filter names
         if(GuitarApp.currentChordName) uiManager.renderDiagram(GuitarApp.currentChordName);
     },
 
     t(key) {
-        return this.dict[this.lang][key] || key;
+        // Case-insensitive fallback for keys generally, or explicit mappings
+        const val = this.dict[this.lang][key];
+        if(val) return val;
+        
+        // Lowercase fallback? 
+        if(key === 'minor') return this.dict[this.lang]['Minor'] || 'minor';
+        
+        return key;
+    },
+
+    translateRoot(root) {
+        if(this.lang === 'en') return root;
+        const notes = { 'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si' };
+        
+        // Handle accientals
+        let note = root[0];
+        let acc = root.length > 1 ? root.substring(1) : '';
+        
+        if (notes[note]) return notes[note] + acc;
+        return root;
     },
 
     // Convert Chord Name to Target Lang
@@ -245,24 +270,28 @@ const SoundManager = {
         const positions = data.positions || data;
         let delay = 0;
 
-        // Strum down (6 to 1)
+        // Strum down (6 to 1) - Fast
         for(let s=6; s>=1; s--) {
              const pos = positions.find(p => p.string === s);
-             if(pos && pos.fret >= -1) { // -1 usually handled as x, but verify data
-                 // Usually only pos with fret >= 0 are played.
-                 // If fret is not present, it's mute? 
-                 // In our data: `positions` only lists played notes.
-                 // Wait, OPEN chords might not list open strings if data is sparse?
-                 // Checking shapes.js: offsets specify strings. 
-                 // It seems positions array is complete for the chord.
-                 
-                 // However, we must ensure we only play if fret >= 0.
+             if(pos && pos.fret >= -1) { 
                  if (pos.fret >= 0) {
                      const base = stringBaseFreqs[6-s];
                      const freq = base * Math.pow(2, pos.fret / 12);
                      this.playNote(freq, delay);
                      delay += 0.04;
                  }
+             }
+        }
+
+        // Arpeggio - Individual notes ascending (after pause)
+        let arpDelay = delay + 0.5; // Start 0.5s after strum finishes
+        for(let s=6; s>=1; s--) {
+             const pos = positions.find(p => p.string === s);
+             if(pos && pos.fret >= 0) {
+                 const base = stringBaseFreqs[6-s];
+                 const freq = base * Math.pow(2, pos.fret / 12);
+                 this.playNote(freq, arpDelay);
+                 arpDelay += 0.3; // Slower individual notes
              }
         }
     }
@@ -625,28 +654,31 @@ const GuitarApp = {
 
         chordNotes.forEach(note => {
             const pos = this.getNotePosition(note.string, note.fret);
-            fingerNotes[note.finger].push({ ...note, pos });
-            
-            if (note.fret > 0) {
-                const m = new THREE.Mesh(
-                    new THREE.CircleGeometry(0.12, 16),
-                    new THREE.MeshBasicMaterial({ color: this.fingerColors[note.finger], transparent: true, opacity: 0.8, side: THREE.DoubleSide })
-                );
-                m.rotation.x = -Math.PI / 2;
-                m.position.set(pos.x, 0.16, pos.z);
-                this.markerGroup.add(m);
 
-                const r = new THREE.Mesh(
-                    new THREE.RingGeometry(0.14, 0.17, 16),
-                    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
-                );
-                r.rotation.x = -Math.PI / 2;
-                r.position.set(pos.x, 0.162, pos.z);
-                this.markerGroup.add(r);
+            if(note.finger >= 0 && note.finger < 4) {
+                fingerNotes[note.finger].push({ ...note, pos });
+                
+                if (note.fret > 0) {
+                    const m = new THREE.Mesh(
+                        new THREE.CircleGeometry(0.12, 16),
+                        new THREE.MeshBasicMaterial({ color: this.fingerColors[note.finger], transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+                    );
+                    m.rotation.x = -Math.PI / 2;
+                    m.position.set(pos.x, 0.16, pos.z);
+                    this.markerGroup.add(m);
+
+                    const r = new THREE.Mesh(
+                        new THREE.RingGeometry(0.14, 0.17, 16),
+                        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+                    );
+                    r.rotation.x = -Math.PI / 2;
+                    r.position.set(pos.x, 0.162, pos.z);
+                    this.markerGroup.add(r);
+                }
+                avgX += pos.x;
+                avgZ += pos.z;
+                count++;
             }
-            avgX += pos.x;
-            avgZ += pos.z;
-            count++;
         });
 
         for(let i=0; i<4; i++) {
@@ -1005,6 +1037,7 @@ const uiManager = {
     selectedSelectorRoot: 'C',
     selectedSelectorType: 'Major',
     selectedSelectorCategory: 'All', // New State
+    selectedSelectorBass: 'All', // New Bass String State
     selectedSelectorInversion: 'All', // New Inv State
     beginnerMode: true,
 
@@ -1167,6 +1200,13 @@ const uiManager = {
             else if(chordData.tags.includes('Triad')) this.selectedSelectorCategory = 'Triad';
             else if(chordData.tags.includes('Tetrad')) this.selectedSelectorCategory = 'Tetrad';
             
+            // Sync Bass
+            const pos = chordData.positions || chordData;
+            let b = 0;
+            if(pos && Array.isArray(pos)) b = Math.max(...pos.map(p => p.string));
+            if(b > 0) this.selectedSelectorBass = b;
+            else this.selectedSelectorBass = 'All';
+            
             // Sync Inversion if visible
             if (this.selectedSelectorCategory === 'Triad' || this.selectedSelectorCategory === 'Tetrad') {
                 const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', '3rd-Inv', 'Drop2', 'Drop3'];
@@ -1233,8 +1273,15 @@ const uiManager = {
     },
     selectSelectorCategory(cat) {
         this.selectedSelectorCategory = cat;
-        // Reset Inversion when category changes
+        // Reset sublevels
+        this.selectedSelectorBass = 'All';
         this.selectedSelectorInversion = 'All';
+        this.renderSelectors();
+        this.ensurePanelOpen();
+        this.tryAutoSelectChord();
+    },
+    selectSelectorBass(bass) {
+        this.selectedSelectorBass = bass;
         this.renderSelectors();
         this.ensurePanelOpen();
         this.tryAutoSelectChord();
@@ -1290,9 +1337,22 @@ const uiManager = {
             if (this.beginnerMode) {
                 const cTags = LibraryManager.data.chords[k].tags || [];
                 if (!cTags.includes('Open')) return false;
-            } else if (cat !== 'All') {
+            } else {
                 const cTags = LibraryManager.data.chords[k].tags || [];
-                if (!cTags.includes(cat)) return false;
+                
+                // Category
+                if (cat !== 'All') {
+                    if (!cTags.includes(cat)) return false;
+                }
+                
+                // Bass String
+                if (this.selectedSelectorBass !== 'All') {
+                     const cData = LibraryManager.data.chords[k];
+                     const pos = cData.positions || cData;
+                     let b = 0;
+                     if(pos && Array.isArray(pos)) b = Math.max(...pos.map(p => p.string));
+                     if(String(b) !== String(this.selectedSelectorBass)) return false;
+                }
                 
                 // Check Inversion (only if category matched and is Triad/Tetrad, though currently UI enforces logic)
                 if (inv !== 'All' && (cat === 'Triad' || cat === 'Tetrad')) {
@@ -1396,7 +1456,7 @@ const uiManager = {
             sortedRoots.forEach(r => {
                 const btn = document.createElement('button');
                 btn.className = `selector-btn ${r === validRoot ? 'selected' : ''}`;
-                btn.textContent = r;
+                btn.textContent = TranslationManager.translateRoot(r);
                 btn.onclick = () => this.selectSelectorRoot(r);
                 rootContainer.appendChild(btn);
             });
@@ -1522,9 +1582,68 @@ const uiManager = {
             return data.tags && data.tags.includes(validCat);
         });
 
-        // 4. INVERSIONS (Sub-Level for Triads/Tetrads)
+        // 4. BASS STRING (New Level)
+        let bassKeys = catKeys;
+        const bassContainer = document.getElementById('bass-selector');
+        
+        if (this.beginnerMode) {
+             if(bassContainer) bassContainer.style.display = 'none';
+        } else {
+             if(bassContainer) bassContainer.style.display = 'flex';
+             
+             const bassSet = new Set();
+             catKeys.forEach(k => {
+                 const data = chords[k];
+                 const pos = data.positions || data;
+                 let b = 0;
+                 if(pos && Array.isArray(pos)) b = Math.max(...pos.map(p => p.string));
+                 if(b > 0) bassSet.add(b);
+             });
+             
+             const sortedBass = Array.from(bassSet).sort((a,b) => b - a); // 6, 5, 4... desc
+             
+             let validBass = this.selectedSelectorBass;
+             
+             // Cast to string for consistent comparison
+             const bassStr = String(validBass);
+             
+             // Ensure valid (if current selection not in set, pick first)
+             if (validBass !== 'All' && !bassSet.has(parseInt(validBass))) {
+                 validBass = sortedBass.length > 0 ? sortedBass[0] : 'All';
+             }
+             // Auto-select first if none selected and not All mode (force user to see specific bass strings)
+             if ((validBass === 'All' || validBass === undefined) && sortedBass.length > 0) {
+                 validBass = sortedBass[0]; 
+             }
+             
+             this.selectedSelectorBass = validBass;
+             
+             if(bassContainer) {
+                 bassContainer.innerHTML = '';
+                 sortedBass.forEach(b => {
+                     const btn = document.createElement('button');
+                     btn.className = `selector-btn ${String(b) === String(validBass) ? 'selected' : ''}`;
+                     btn.textContent = `Str ${b}`;
+                     btn.onclick = () => this.selectSelectorBass(b);
+                     bassContainer.appendChild(btn);
+                 });
+             }
+             
+             // Filter keys by Bass
+             if(validBass !== 'All') {
+                 bassKeys = catKeys.filter(k => {
+                     const data = chords[k];
+                     const pos = data.positions || data;
+                     let b = 0;
+                     if(pos && Array.isArray(pos)) b = Math.max(...pos.map(p => p.string));
+                     return String(b) === String(validBass);
+                 });
+             }
+        }
+
+        // 5. INVERSIONS (Sub-Level for Triads/Tetrads)
         const invContainer = document.getElementById('inversion-selector');
-        let finalKeys = catKeys;
+        let finalKeys = bassKeys;
 
         if (invContainer) {
             if (!this.beginnerMode && (validCat === 'Triad' || validCat === 'Tetrad')) {
@@ -1534,7 +1653,8 @@ const uiManager = {
                 const inversions = new Set();
                 const invTagList = ['Root-Pos', '1st-Inv', '2nd-Inv', '3rd-Inv', 'Drop2', 'Drop3'];
                 
-                catKeys.forEach(k => {
+                // Use bassKeys to only show relevant inversions
+                bassKeys.forEach(k => {
                     const data = chords[k];
                     if(data.tags) {
                         data.tags.forEach(t => {
@@ -1571,7 +1691,7 @@ const uiManager = {
 
                 // Filter final keys by Inversion
                 if (validInv) {
-                    finalKeys = catKeys.filter(k => {
+                    finalKeys = bassKeys.filter(k => {
                         const data = chords[k];
                         return data.tags && data.tags.includes(validInv);
                     });
@@ -1687,12 +1807,12 @@ const uiManager = {
         
         let html = '';
         if(tags.length) {
-            html += `<div style="margin-bottom:10px; font-size: 0.8em; color: var(--accent-color);">
+            html += `
                 ${tags.map(t => {
                     const label = TranslationManager.t(t);
-                    return `<span style="border:1px solid #555; padding:2px 6px; border-radius:4px; margin-right:4px;">${label}</span>`;
+                    return `<span>${label}</span>`;
                 }).join('')}
-            </div>`;
+            `;
         }
 
         const fingerList = document.getElementById('finger-list');
