@@ -80,21 +80,45 @@
             <div id="panel-content">
                 <!-- Hand Transformation Controls -->
                 <div id="debug-controls">
+                    <h4 style="margin: 8px 0; font-size: 12px; color: var(--text-muted);">Position</h4>
                     <div class="control-row">
-                        <label>X</label>
-                        <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('x', this.value)">
-                        <span id="offset-x">0.0</span>
+                        <label>Pos X</label>
+                        <input type="range" min="-2" max="2" step="0.05" value="0" id="hand-pos-x" oninput="uiManager.updateHandPosition('x', this.value)">
+                        <span id="hand-pos-x-val">0.0</span>
                     </div>
                     <div class="control-row">
-                        <label>Y</label>
-                        <input type="range" min="-1" max="1" step="0.1" value="0" oninput="uiManager.updateHandOffset('y', this.value)">
-                        <span id="offset-y">0.0</span>
+                        <label>Pos Y</label>
+                        <input type="range" min="-2" max="2" step="0.05" value="0" id="hand-pos-y" oninput="uiManager.updateHandPosition('y', this.value)">
+                        <span id="hand-pos-y-val">0.0</span>
                     </div>
-                    
+                    <div class="control-row">
+                        <label>Pos Z</label>
+                        <input type="range" min="-2" max="2" step="0.05" value="0" id="hand-pos-z" oninput="uiManager.updateHandPosition('z', this.value)">
+                        <span id="hand-pos-z-val">0.0</span>
+                    </div>
+
+                    <h4 style="margin: 16px 0 8px 0; font-size: 12px; color: var(--text-muted);">Rotation (radians)</h4>
+                    <div class="control-row">
+                        <label>Rot X</label>
+                        <input type="range" min="-3.14" max="3.14" step="0.1" value="0" id="hand-rot-x" oninput="uiManager.updateHandRotation('x', this.value)">
+                        <span id="hand-rot-x-val">0.0</span>
+                    </div>
+                    <div class="control-row">
+                        <label>Rot Y</label>
+                        <input type="range" min="-3.14" max="3.14" step="0.1" value="0" id="hand-rot-y" oninput="uiManager.updateHandRotation('y', this.value)">
+                        <span id="hand-rot-y-val">0.0</span>
+                    </div>
+                    <div class="control-row">
+                        <label>Rot Z</label>
+                        <input type="range" min="-3.14" max="3.14" step="0.1" value="0" id="hand-rot-z" oninput="uiManager.updateHandRotation('z', this.value)">
+                        <span id="hand-rot-z-val">0.0</span>
+                    </div>
+
                     <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px;">
-                        <button onclick="uiManager.resetCurrentOffset()" class="btn btn-secondary icon-btn" title="Reset">↺</button>
+                        <button onclick="uiManager.resetHandTransform()" class="btn btn-secondary icon-btn" title="Reset">↺</button>
+                        <button onclick="uiManager.logHandTransform()" class="btn btn-secondary" style="font-size: 11px;">Log Values</button>
                     </div>
-                    
+
                     <div id="panel-cam-coords" style="margin-top: 12px; font-size: 11px; color: var(--text-muted); text-align: right; border-top: 1px solid var(--panel-border); padding-top: 8px; font-family: monospace;">Cam: 0, 0, 0</div>
                 </div>
             </div>

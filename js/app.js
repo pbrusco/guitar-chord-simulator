@@ -302,30 +302,18 @@ const SoundManager = {
 // ==========================================
 const GuitarApp = {
     scene: null, camera: null, renderer: null, controls: null,
-    neckGroup: null, handGroup: null, markerGroup: null,
-    fingers: [], knucklePositions: [],
+    neckGroup: null, hand: null, markerGroup: null,
     currentChordName: null,
     handOffset: new THREE.Vector3(),
-    palmPosition: new THREE.Vector3(-4, -1, 1.5), // Base Palm Pos
-    fingerTargets: [null, null, null, null],
-    
-    // Animation State
-    actualFingerPositions: [],
-    actualKnucklePositions: [],
+    handPositionOffset: new THREE.Vector3(0, 0, 0),
+    handRotationOffset: new THREE.Euler(0, 0, 0),
+    fingerTargets: [null, null, null, null, null], // 5 fingers
     transitionSpeed: 0.15,
 
     // Configs
     strings: [],
-    fretPositions: [], 
+    fretPositions: [],
     stringColors: [0xe8e8e8, 0xe0e0e0, 0xd8d8d8, 0xb8b8b8, 0xa8a8a8, 0x989898],
-    fingerColors: [0x00ffff, 0xffff00, 0xff8800, 0xff88ff],
-    skinTones: [0xf5c9a6, 0xf2c4a0, 0xf0c19a, 0xeebb94],
-    fingerConfigs: [
-        { offset: new THREE.Vector3(-0.35, 0, 0), lengths: [0.5, 0.4, 0.3] },   // Index
-        { offset: new THREE.Vector3(-0.10, 0, 0), lengths: [0.58, 0.45, 0.32] },  // Middle
-        { offset: new THREE.Vector3(0.15, 0, 0), lengths: [0.54, 0.42, 0.3] },   // Ring
-        { offset: new THREE.Vector3(0.40, 0, 0), lengths: [0.44, 0.35, 0.26] }   // Pinky
-    ],
 
     init() {
         // Setup Three.js Scene
@@ -584,34 +572,15 @@ const GuitarApp = {
     },
 
     buildHand() {
-        this.handGroup = new THREE.Group();
-        this.scene.add(this.handGroup);
-        
         this.markerGroup = new THREE.Group();
         this.scene.add(this.markerGroup);
 
-        // Initialize Fingers - Add to handGroup instead of scene
-        for (let i = 0; i < 4; i++) {
-            const fConfig = this.fingerConfigs[i];
-            const f = new Finger(this.fingerColors[i], fConfig.offset, fConfig.lengths, this.handGroup);
-            this.fingers.push(f);
-            this.knucklePositions.push(new THREE.Vector3());
-            this.actualFingerPositions.push(new THREE.Vector3());
-            this.actualKnucklePositions.push(new THREE.Vector3());
-        }
+        // Store reference to GuitarApp for hand access
+        this.scene.userData.app = this;
+        window.GuitarApp = this;
 
-        // Initialize Palm - HIDDEN
-        /*
-        const palmGeo = new THREE.BoxGeometry(1.6, 0.25, 1.4);
-        const palmMat = new THREE.MeshStandardMaterial({ 
-             map: SHARED_SKIN_TEX, 
-             roughness: 0.5 
-        });
-        this.palmMesh = new THREE.Mesh(palmGeo, palmMat);
-        this.palmMesh.castShadow = true;
-        this.handGroup.add(this.palmMesh);
-        */
-        this.palmMesh = null; // Ensure explicitly null
+        // Create new anatomical hand system
+        this.hand = new Hand(this.scene);
     },
 
     getNotePosition(stringIdx, fret) {
@@ -641,153 +610,57 @@ const GuitarApp = {
     updatePositions() {
         const name = this.currentChordName;
         if(!name || !LibraryManager.data.chords[name]) return;
-        if(!this.markerGroup) return;
+        if(!this.markerGroup || !this.hand) return;
 
-        this.fingerTargets = [null, null, null, null];
+        // Reset finger targets (5 fingers: thumb=0, index-pinky=1-4)
+        this.fingerTargets = [null, null, null, null, null];
         this.markerGroup.clear();
-        
+
+        const fingerColors = [0x88ff88, 0x00ffff, 0xffff00, 0xff8800, 0xff88ff];
+
         const chordObj = LibraryManager.data.chords[name];
         const chordNotes = chordObj.positions || chordObj;
-        let avgX = 0, avgZ = 0, count = 0;
-        
-        const fingerNotes = [[], [], [], []];
 
+        // Map chord notes to finger targets
         chordNotes.forEach(note => {
             const pos = this.getNotePosition(note.string, note.fret);
 
             if(note.finger >= 0 && note.finger < 4) {
-                fingerNotes[note.finger].push({ ...note, pos });
-                
+                // Map chord data fingers (0-3) to hand fingers (1-4: index to pinky)
+                const handFingerIdx = note.finger + 1;
+                this.fingerTargets[handFingerIdx] = pos.clone();
+
+                // Visual markers
                 if (note.fret > 0) {
                     const m = new THREE.Mesh(
                         new THREE.CircleGeometry(0.12, 16),
-                        new THREE.MeshBasicMaterial({ color: this.fingerColors[note.finger], transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+                        new THREE.MeshBasicMaterial({
+                            color: fingerColors[handFingerIdx],
+                            transparent: true,
+                            opacity: 0.7,
+                            side: THREE.DoubleSide
+                        })
                     );
                     m.rotation.x = -Math.PI / 2;
                     m.position.set(pos.x, 0.16, pos.z);
                     this.markerGroup.add(m);
 
-                    const r = new THREE.Mesh(
-                        new THREE.RingGeometry(0.14, 0.17, 16),
-                        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+                    const ring = new THREE.Mesh(
+                        new THREE.RingGeometry(0.14, 0.16, 16),
+                        new THREE.MeshBasicMaterial({
+                            color: 0xffffff,
+                            side: THREE.DoubleSide
+                        })
                     );
-                    r.rotation.x = -Math.PI / 2;
-                    r.position.set(pos.x, 0.162, pos.z);
-                    this.markerGroup.add(r);
+                    ring.rotation.x = -Math.PI / 2;
+                    ring.position.set(pos.x, 0.162, pos.z);
+                    this.markerGroup.add(ring);
                 }
-                avgX += pos.x;
-                avgZ += pos.z;
-                count++;
             }
         });
 
-        for(let i=0; i<4; i++) {
-            const notes = fingerNotes[i];
-            if (notes.length > 0) {
-                if (notes.length > 1) {
-                    this.fingers[i].isBarre = true;
-                    notes.sort((a,b) => b.pos.z - a.pos.z);
-                    
-                    const maxNote = notes[0];
-                    const minNote = notes[notes.length-1];
-                    
-                    const tipPos = maxNote.pos.clone();
-                    tipPos.z = Math.max(0.72, tipPos.z + 0.05); 
-                    this.fingerTargets[i] = tipPos;
-
-                    const zCenter = (minNote.pos.z + maxNote.pos.z) / 2;
-                    const zSize = (maxNote.pos.z - minNote.pos.z) + 0.4;
-                    
-                    const highlight = new THREE.Mesh(
-                        new THREE.BoxGeometry(0.35, 0.04, zSize),
-                        new THREE.MeshBasicMaterial({ 
-                            color: this.fingerColors[i], 
-                            transparent: true, 
-                            opacity: 0.3 
-                        })
-                    );
-                    highlight.position.set(maxNote.pos.x, 0.12, zCenter);
-                    this.markerGroup.add(highlight);
-
-                } else {
-                    this.fingers[i].isBarre = false;
-                    this.fingerTargets[i] = notes[0].pos;
-                }
-            } else {
-                this.fingers[i].isBarre = false; 
-            }
-        }
-
-        if (count > 0) { avgX /= count; avgZ /= count; }
-
-        let barreZ = 0;
-        let barreY = 0;
-        
-        let baseX = avgX + this.handOffset.x;
-        const barreFingerIdx = this.fingers.findIndex(f => f.isBarre);
-        
-        if(barreFingerIdx !== -1) {
-                barreZ = 0.6;
-                barreY = -0.2;
-                
-                const tipX = this.fingerTargets[barreFingerIdx].x;
-                const idealBaseX = tipX - this.fingerConfigs[barreFingerIdx].offset.x;
-
-                let xShift = this.handOffset.x;
-                
-                if(xShift > 0.5) xShift = 0.5;
-                if(xShift < -0.5) xShift = -0.5;
-
-                baseX = idealBaseX + xShift;
-
-                const yStagger = [0, 0.08, 0.06, -0.04][barreFingerIdx];
-                barreY = (0.48 - yStagger) - (-0.4);
-                
-                this.currentYOffset = 0; 
-        } else {
-                this.currentYOffset = this.handOffset.y;
-        }
-
-        const knuckleY = -0.4 + this.currentYOffset + barreY;
-        const fixedKnuckleZ = -0.95; 
-        const knuckleZ = fixedKnuckleZ; 
-
-        for (let i = 0; i < 4; i++) {
-            const config = this.fingerConfigs[i];
-            const yStagger = [0, 0.08, 0.06, -0.04][i];
-            const zStagger = i * 0.05;
-            this.knucklePositions[i].set(
-                baseX + config.offset.x,
-                knuckleY + yStagger,
-                knuckleZ + zStagger
-            );
-        }
-
-        for (let i = 0; i < 4; i++) {
-            if (!this.fingerTargets[i]) {
-                let left = -1, right = -1;
-                for(let j=i-1; j>=0; j--) if(this.fingerTargets[j]) { left = j; break; }
-                for(let j=i+1; j<4; j++) if(this.fingerTargets[j]) { right = j; break; }
-                
-                let tx = baseX + this.fingerConfigs[i].offset.x;
-                let tz = avgZ;
-                
-                if (left !== -1 && right !== -1) {
-                    const rangeTotal = this.fingerConfigs[right].offset.x - this.fingerConfigs[left].offset.x;
-                    const myRel = (this.fingerConfigs[i].offset.x - this.fingerConfigs[left].offset.x) / rangeTotal;
-                    tx = this.fingerTargets[left].x + (this.fingerTargets[right].x - this.fingerTargets[left].x) * myRel;
-                    tz = this.fingerTargets[left].z + (this.fingerTargets[right].z - this.fingerTargets[left].z) * myRel;
-                } else if (left !== -1) {
-                    tx = Math.max(tx, this.fingerTargets[left].x + 0.2);
-                    tz = this.fingerTargets[left].z;
-                } else if (right !== -1) {
-                    tx = Math.min(tx, this.fingerTargets[right].x - 0.2);
-                    tz = this.fingerTargets[right].z;
-                }
-
-                this.fingerTargets[i] = new THREE.Vector3(tx, 1.1, tz);
-            }
-        }
+        // Position hand to reach the targets
+        this.hand.positionToReach(this.fingerTargets);
     },
 
     updateCameraInfo() {
@@ -803,35 +676,10 @@ const GuitarApp = {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        
-        let palmCenter = new THREE.Vector3();
-        let activeCount = 0;
 
-        for (let i = 0; i < 4; i++) {
-            const targetF = this.fingerTargets[i];
-            const targetK = this.knucklePositions[i];
-
-            if (targetF && targetK) {
-                if(this.actualKnucklePositions[i].lengthSq() === 0) {
-                    this.actualKnucklePositions[i].copy(targetK);
-                    this.actualFingerPositions[i].copy(targetF);
-                }
-
-                this.actualFingerPositions[i].lerp(targetF, this.transitionSpeed);
-                this.actualKnucklePositions[i].lerp(targetK, this.transitionSpeed);
-
-                palmCenter.add(this.actualKnucklePositions[i]);
-                activeCount++;
-
-                this.fingers[i].setTarget(this.actualFingerPositions[i]);
-                this.fingers[i].update(this.actualKnucklePositions[i]);
-            }
-        }
-        
-        if (this.palmMesh && activeCount > 0) {
-            palmCenter.divideScalar(activeCount);
-            this.palmMesh.position.set(palmCenter.x, palmCenter.y - 0.15, palmCenter.z + 0.6);
-            this.palmMesh.rotation.x = -0.2; 
+        // Update hand position and finger flex
+        if (this.hand) {
+            this.hand.update();
         }
 
         this.controls.update();
@@ -839,9 +687,10 @@ const GuitarApp = {
     },
 
     toggleHand() {
-        if (this.handGroup) {
-            this.handGroup.visible = !this.handGroup.visible;
-            return this.handGroup.visible;
+        if (this.hand) {
+            const visible = !this.hand.group.visible;
+            this.hand.setVisible(visible);
+            return visible;
         }
         return true;
     },
@@ -862,170 +711,367 @@ function createSkinTexture() {
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
-    
-    // Base Skin Tone
-    ctx.fillStyle = '#f5c9a6';
-    ctx.fillRect(0,0,size,size);
-    
-    // 1. Noise / Pores
-    for(let i=0; i<80000; i++) {
+
+    // Base Skin Tone - slightly warmer and more natural
+    const baseGradient = ctx.createLinearGradient(0, 0, size, size);
+    baseGradient.addColorStop(0, '#f7d0b0');
+    baseGradient.addColorStop(1, '#f3c6a0');
+    ctx.fillStyle = baseGradient;
+    ctx.fillRect(0, 0, size, size);
+
+    // 1. Fine skin texture / pores (smaller, more subtle)
+    for(let i=0; i<120000; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
-        ctx.fillStyle = `rgba(160, 82, 45, ${Math.random() * 0.08})`; 
-        ctx.fillRect(x,y,2,2);
-    }
-    
-    // 2. Subsurface scattering simulation
-    for(let i=0; i<50; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const r = 20 + Math.random() * 60;
-            const grd = ctx.createRadialGradient(x,y,0, x,y,r);
-            grd.addColorStop(0, "rgba(255, 100, 100, 0.04)");
-            grd.addColorStop(1, "rgba(255, 100, 100, 0)");
-            ctx.fillStyle = grd;
-            ctx.beginPath();
-            ctx.arc(x,y,r,0,Math.PI*2);
-            ctx.fill();
+        const intensity = Math.random() * 0.06;
+        ctx.fillStyle = `rgba(145, 75, 45, ${intensity})`;
+        ctx.fillRect(x, y, 1, 1);
     }
 
-    // 3. Highlights
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
-    ctx.lineWidth = 20;
+    // 2. Subsurface scattering simulation (more subtle red tones)
+    for(let i=0; i<60; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const r = 25 + Math.random() * 70;
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grd.addColorStop(0, "rgba(255, 120, 100, 0.06)");
+        grd.addColorStop(0.6, "rgba(255, 140, 120, 0.02)");
+        grd.addColorStop(1, "rgba(255, 100, 100, 0)");
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 3. Subtle skin wrinkles/lines
+    ctx.strokeStyle = "rgba(180, 120, 90, 0.04)";
+    ctx.lineWidth = 1;
+    for(let i=0; i<30; i++) {
+        ctx.beginPath();
+        const startX = Math.random() * size;
+        const startY = Math.random() * size;
+        ctx.moveTo(startX, startY);
+        ctx.bezierCurveTo(
+            startX + Math.random() * 60 - 30, startY + Math.random() * 20,
+            startX + Math.random() * 60 - 30, startY + Math.random() * 40,
+            startX + Math.random() * 80 - 40, startY + Math.random() * 50
+        );
+        ctx.stroke();
+    }
+
+    // 4. Natural highlights (soft specular areas)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.lineWidth = 25;
     ctx.beginPath();
     ctx.moveTo(0, size/2);
     ctx.bezierCurveTo(size/3, size/3, size*2/3, size*2/3, size, size/2);
     ctx.stroke();
 
+    // 5. Additional soft highlights
+    for(let i=0; i<5; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const r = 30 + Math.random() * 40;
+        const highlight = ctx.createRadialGradient(x, y, 0, x, y, r);
+        highlight.addColorStop(0, "rgba(255, 255, 255, 0.04)");
+        highlight.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = highlight;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
     return tex;
 }
 
 const SHARED_SKIN_TEX = createSkinTexture();
 
 // ==========================================
-// FINGER CLASS
+// NEW FINGER CLASS - Simple anatomical flexing
 // ==========================================
 class Finger {
-    constructor(color, offset, lengths, scene) {
+    constructor(name, color, palmAttachPoint, lengths, scene) {
+        this.name = name;
+        this.palmAttachPoint = palmAttachPoint.clone();
         this.lengths = lengths;
         this.segments = [];
         this.joints = [];
-        this.targetPos = new THREE.Vector3();
-        this.isBarre = false;
+        this.flexAngles = [0, 0, 0];
+        this.scene = scene;
 
-        const skinMat = new THREE.MeshPhysicalMaterial({ 
+        const skinMat = new THREE.MeshPhysicalMaterial({
             map: SHARED_SKIN_TEX,
             color: 0xffffff,
-            roughness: 0.65, 
+            roughness: 0.55,
             metalness: 0.0,
-            reflectivity: 0.5,
-            sheen: 0.5,
-            sheenColor: 0xffddcc,
-            sheenRoughness: 0.5,
-            side: THREE.FrontSide
+            sheen: 0.8,
+            sheenColor: 0xffe5d9,
         });
-        
-        const tipMat = new THREE.MeshPhysicalMaterial({ 
-            color: color, 
+
+        const nailMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffd5c8,
+            roughness: 0.25,
+            clearcoat: 0.7,
+        });
+
+        const tipMarkerMat = new THREE.MeshPhysicalMaterial({
+            color: color,
             roughness: 0.3,
-            metalness: 0.1,
-            clearcoat: 0.4,
-            clearcoatRoughness: 0.2
+            transparent: true,
+            opacity: 0.7
         });
 
-        const jointMat = skinMat;
+        // Create segments
+        const baseRadius = 0.10;
+        const taperFactors = [0.88, 0.75, 0.62];
 
-        lengths.forEach((l) => {
-            const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, l, 16), skinMat);
+        lengths.forEach((len, idx) => {
+            const topRad = baseRadius * taperFactors[idx];
+            const botRad = idx === 0 ? baseRadius : baseRadius * taperFactors[idx - 1];
+            const seg = new THREE.Mesh(
+                new THREE.CylinderGeometry(topRad, botRad, len, 12),
+                skinMat
+            );
             seg.castShadow = true;
             scene.add(seg);
             this.segments.push(seg);
         });
 
-        for(let i=0; i<4; i++) {
-            const m = (i === 3) ? tipMat : skinMat;
-            const joint = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 24), m); 
+        // Create joints
+        const jointRadii = [0.11, 0.09, 0.075, 0.07];
+
+        for (let i = 0; i < 4; i++) {
+            const joint = new THREE.Mesh(
+                new THREE.SphereGeometry(jointRadii[i], 14, 14),
+                skinMat
+            );
+            joint.scale.y = 0.9;
             joint.castShadow = true;
             scene.add(joint);
             this.joints.push(joint);
-        }
-    }
 
-    setTarget(pos) { 
-        this.targetPos.copy(pos); 
-    }
-
-    update(knucklePos) {
-        const p0 = knucklePos.clone();
-        const p2 = this.targetPos.clone();
-        
-        let pos;
-
-        const totalLen = this.lengths.reduce((a,b)=>a+b,0);
-        const t1 = this.lengths[0]/totalLen;
-        const t2 = (this.lengths[0] + this.lengths[1])/totalLen;
-
-        if (this.isBarre) {
-            const barreHeight = 0.42;
-            p2.y = barreHeight; 
-            
-            const getBarrePoint = (t) => {
-                return new THREE.Vector3(
-                    p0.x + (p2.x - p0.x) * t,
-                    barreHeight, 
-                    p0.z + (p2.z - p0.z) * t
+            if (i === 3) {
+                const nailGeo = new THREE.SphereGeometry(
+                    jointRadii[i] * 0.6, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.45
                 );
-            };
+                const nail = new THREE.Mesh(nailGeo, nailMat);
+                nail.rotation.x = -Math.PI / 2;
+                nail.position.y = jointRadii[i] * 0.25;
+                joint.add(nail);
 
-            const j1 = getBarrePoint(t1);
-            const j2 = getBarrePoint(t2);
-            
-            pos = [p0, j1, j2, p2];
-
-        } else {
-            const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
-            const dist = p0.distanceTo(p2);
-            
-            mid.y = Math.max(p0.y, p2.y) + 0.6 + (dist * 0.15);
-            
-            if (p0.z > 0) mid.z += 0.5;
-            else mid.z -= 0.5;
-
-            const getP = (t) => {
-                const u = 1 - t;
-                return new THREE.Vector3(
-                    u*u*p0.x + 2*u*t*mid.x + t*t*p2.x,
-                    u*u*p0.y + 2*u*t*mid.y + t*t*p2.y,
-                    u*u*p0.z + 2*u*t*mid.z + t*t*p2.z
+                const marker = new THREE.Mesh(
+                    new THREE.SphereGeometry(jointRadii[i] * 0.4, 8, 8),
+                    tipMarkerMat
                 );
-            };
-
-            pos = [p0, getP(t1), getP(t2), p2];
-        }
-
-        const maxZ = 0.75;
-        const minZ = -0.95;
-        const safeHeight = 0.38; 
-
-        pos.forEach(p => {
-            if(p.z > maxZ) p.z = maxZ;
-            if(p.z < minZ) p.z = minZ;
-
-            if(p.y < safeHeight) {
-                p.y = safeHeight;
+                marker.position.y = jointRadii[i] * 0.1;
+                joint.add(marker);
             }
+        }
+    }
+
+    setFlex(angles) {
+        this.flexAngles = angles.slice(0, 3);
+    }
+
+    update(palmPosition, palmRotation, fixedTipTarget = null) {
+        const matrix = new THREE.Matrix4().makeRotationFromEuler(palmRotation);
+        const knuckleWorld = this.palmAttachPoint.clone().applyMatrix4(matrix).add(palmPosition);
+
+        let positions;
+
+        if (fixedTipTarget) {
+            // REVERSE MODE: Fingertip is locked at target, work backwards
+            positions = [null, null, null, fixedTipTarget.clone()];
+
+            // Calculate intermediate joint positions working backwards from tip
+            const totalLen = this.lengths.reduce((a, b) => a + b, 0);
+            const knuckleToTip = fixedTipTarget.clone().sub(knuckleWorld);
+            const distance = knuckleToTip.length();
+
+            // Direction from knuckle to tip
+            const direction = knuckleToTip.clone().normalize();
+
+            // Place joints along the line from knuckle to tip, distributed by segment length
+            positions[0] = knuckleWorld.clone();
+            let accumulated = 0;
+            for (let i = 0; i < 2; i++) {
+                accumulated += this.lengths[i];
+                const t = accumulated / totalLen;
+                positions[i + 1] = knuckleWorld.clone().lerp(fixedTipTarget, t);
+            }
+        } else {
+            // FORWARD MODE: Use flex angles (original behavior)
+            positions = [knuckleWorld];
+            let currentPos = knuckleWorld.clone();
+            let currentDir = new THREE.Vector3(1, 0, 0).applyEuler(palmRotation);
+
+            for (let i = 0; i < 3; i++) {
+                const rotAxis = new THREE.Vector3(0, 0, 1).applyEuler(palmRotation);
+                currentDir.applyAxisAngle(rotAxis, -this.flexAngles[i]);
+                const nextPos = currentPos.clone().add(currentDir.clone().multiplyScalar(this.lengths[i]));
+                positions.push(nextPos);
+                currentPos = nextPos;
+            }
+        }
+
+        // Position joints
+        for (let i = 0; i < 4; i++) {
+            this.joints[i].position.copy(positions[i]);
+        }
+
+        // Position and orient segments
+        for (let i = 0; i < 3; i++) {
+            const center = new THREE.Vector3().lerpVectors(positions[i], positions[i + 1], 0.5);
+            this.segments[i].position.copy(center);
+            this.segments[i].lookAt(positions[i + 1]);
+            this.segments[i].rotateX(Math.PI / 2);
+            const actualLen = positions[i].distanceTo(positions[i + 1]);
+            this.segments[i].scale.y = actualLen / this.lengths[i];
+        }
+    }
+
+}
+
+// ==========================================
+// HAND CLASS - Anatomical hand with palm + 5 fingers
+// ==========================================
+class Hand {
+    constructor(scene) {
+        this.scene = scene;
+        this.group = new THREE.Group();
+        scene.add(this.group);
+
+        this.position = new THREE.Vector3(0, 0, 0);
+        this.rotation = new THREE.Euler(0, 0, 0);
+        this.activeTargets = [null, null, null, null, null]; // Store finger tip targets
+
+        const colors = [0x88ff88, 0x00ffff, 0xffff00, 0xff8800, 0xff88ff];
+
+        this.createPalm();
+
+        this.fingers = [];
+
+        // Thumb (finger 0)
+        this.fingers.push(new Finger('thumb', colors[0],
+            new THREE.Vector3(0.08, -0.05, -0.42), [0.32, 0.26, 0.20], scene));
+
+        // Index (finger 1)
+        this.fingers.push(new Finger('index', colors[1],
+            new THREE.Vector3(0.0, 0.0, -0.32), [0.46, 0.34, 0.24], scene));
+
+        // Middle (finger 2)
+        this.fingers.push(new Finger('middle', colors[2],
+            new THREE.Vector3(0.0, 0.0, -0.11), [0.52, 0.38, 0.26], scene));
+
+        // Ring (finger 3)
+        this.fingers.push(new Finger('ring', colors[3],
+            new THREE.Vector3(0.0, 0.0, 0.11), [0.48, 0.36, 0.25], scene));
+
+        // Pinky (finger 4)
+        this.fingers.push(new Finger('pinky', colors[4],
+            new THREE.Vector3(0.0, -0.02, 0.35), [0.38, 0.28, 0.20], scene));
+    }
+
+    createPalm() {
+        const palmGeo = new THREE.BoxGeometry(0.55, 0.22, 0.85, 4, 2, 4);
+        const pos = palmGeo.attributes.position;
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            const z = pos.getZ(i);
+
+            const distFromCenter = Math.sqrt(z * z) / 0.5;
+            const roundFactor = 1 - distFromCenter * 0.1;
+            pos.setY(i, y * roundFactor);
+
+            if (x < -0.1) {
+                const taper = 1 - ((Math.abs(x) - 0.1) / 0.35) * 0.18;
+                pos.setZ(i, z * taper);
+            }
+        }
+        palmGeo.computeVertexNormals();
+
+        const palmMat = new THREE.MeshPhysicalMaterial({
+            map: SHARED_SKIN_TEX,
+            color: 0xffffff,
+            roughness: 0.6,
+            sheen: 0.5,
+            sheenColor: 0xffe5d9,
         });
 
-        for(let i=0; i<4; i++) this.joints[i].position.copy(pos[i]);
-        for(let i=0; i<3; i++) {
-            const center = new THREE.Vector3().lerpVectors(pos[i], pos[i+1], 0.5);
-            this.segments[i].position.copy(center);
-            this.segments[i].lookAt(pos[i+1]);
-            this.segments[i].rotateX(Math.PI/2);
-            const d = pos[i].distanceTo(pos[i+1]);
-            this.segments[i].scale.set(1, d / this.lengths[i], 1);
+        this.palmMesh = new THREE.Mesh(palmGeo, palmMat);
+        this.palmMesh.castShadow = true;
+        this.group.add(this.palmMesh);
+    }
+
+    positionToReach(fingerTargets) {
+        // Store targets for later use in update()
+        this.activeTargets = fingerTargets;
+
+        let avgTarget = new THREE.Vector3();
+        let count = 0;
+
+        // Use fingers 1-4 (index to pinky) for positioning
+        for (let i = 1; i < 5; i++) {
+            if (fingerTargets[i]) {
+                avgTarget.add(fingerTargets[i]);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            avgTarget.divideScalar(count);
+
+            // Position palm to align knuckles with fingertip constraints
+            // Apply user offsets from adjustment panel
+            const app = window.GuitarApp || this.scene.userData.app;
+            const posOffset = app ? app.handPositionOffset : new THREE.Vector3();
+            const rotOffset = app ? app.handRotationOffset : new THREE.Euler();
+
+            // Optimize palm position to minimize finger strain
+            // Start from average target and offset backward toward player
+            this.position.set(
+                avgTarget.x - 0.15 + posOffset.x,
+                avgTarget.y - 1.00 + posOffset.y,
+                avgTarget.z - 0.05 + posOffset.z
+            );
+
+            this.rotation.set(
+                0.1 + rotOffset.x,
+                0.5 + rotOffset.y,
+                -0.9 + rotOffset.z
+            );
+        }
+
+        // Set relaxed curl for fingers without targets
+        for (let i = 0; i < 5; i++) {
+            if (!fingerTargets[i]) {
+                this.fingers[i].setFlex([0.6, 0.7, 0.5]);
+            }
+        }
+    }
+
+    update() {
+        this.group.position.copy(this.position);
+        this.group.rotation.copy(this.rotation);
+
+        // Update fingers with fixed tip targets if available
+        for (let i = 0; i < this.fingers.length; i++) {
+            const fixedTarget = this.activeTargets ? this.activeTargets[i] : null;
+            this.fingers[i].update(this.position, this.rotation, fixedTarget);
+        }
+    }
+
+    setVisible(visible) {
+        this.group.visible = visible;
+        for (const finger of this.fingers) {
+            for (const seg of finger.segments) seg.visible = visible;
+            for (const joint of finger.joints) joint.visible = visible;
         }
     }
 }
@@ -1242,13 +1288,58 @@ const uiManager = {
         if(GuitarApp.currentChordName) GuitarApp.updatePositions();
     },
 
+    updateHandPosition(axis, value) {
+        value = parseFloat(value);
+        GuitarApp.handPositionOffset[axis] = value;
+        document.getElementById(`hand-pos-${axis}-val`).textContent = value.toFixed(2);
+        if(GuitarApp.currentChordName) GuitarApp.updatePositions();
+    },
+
+    updateHandRotation(axis, value) {
+        value = parseFloat(value);
+        GuitarApp.handRotationOffset[axis] = value;
+        document.getElementById(`hand-rot-${axis}-val`).textContent = value.toFixed(1);
+        if(GuitarApp.currentChordName) GuitarApp.updatePositions();
+    },
+
+    resetHandTransform() {
+        GuitarApp.handPositionOffset.set(0, 0, 0);
+        GuitarApp.handRotationOffset.set(0, 0, 0);
+
+        document.getElementById('hand-pos-x').value = 0;
+        document.getElementById('hand-pos-y').value = 0;
+        document.getElementById('hand-pos-z').value = 0;
+        document.getElementById('hand-rot-x').value = 0;
+        document.getElementById('hand-rot-y').value = 0;
+        document.getElementById('hand-rot-z').value = 0;
+
+        document.getElementById('hand-pos-x-val').textContent = '0.0';
+        document.getElementById('hand-pos-y-val').textContent = '0.0';
+        document.getElementById('hand-pos-z-val').textContent = '0.0';
+        document.getElementById('hand-rot-x-val').textContent = '0.0';
+        document.getElementById('hand-rot-y-val').textContent = '0.0';
+        document.getElementById('hand-rot-z-val').textContent = '0.0';
+
+        if(GuitarApp.currentChordName) GuitarApp.updatePositions();
+    },
+
+    logHandTransform() {
+        console.log('Hand Transform:');
+        console.log('Position offset:', GuitarApp.handPositionOffset);
+        console.log('Rotation offset:', GuitarApp.handRotationOffset);
+        if (GuitarApp.hand) {
+            console.log('Actual position:', GuitarApp.hand.position);
+            console.log('Actual rotation:', GuitarApp.hand.rotation);
+        }
+    },
+
     resetCurrentOffset() {
         const name = GuitarApp.currentChordName;
-        if (!DEFAULTS.offsets[name]) return; 
+        if (!DEFAULTS.offsets[name]) return;
         const def = DEFAULTS.offsets[name];
-        LibraryManager.data.offsets[name] = { ...def }; 
+        LibraryManager.data.offsets[name] = { ...def };
         // No save call
-        GuitarApp.setChord(name); 
+        GuitarApp.setChord(name);
     },
 
     ensurePanelOpen() {
