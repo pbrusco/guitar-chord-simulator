@@ -2,59 +2,125 @@ import { SHAPES } from './shapes.js';
 
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Map of string number to its open note index
-const STRING_ROOTS = {
-    6: 4, // E
-    5: 9, // A
-    4: 2, // D 
-    3: 7, // G
-    2: 11,// B
-    1: 4  // E
-};
+// Standard tuning: semitones from low E
+const STRING_BASE = { 6: 0, 5: 5, 4: 10, 3: 15, 2: 19, 1: 24 };
+
+// Map of string number to its open note index in NOTES array
+const STRING_ROOTS = { 6: 4, 5: 9, 4: 2, 3: 7, 2: 11, 1: 4 };
 
 function getNoteName(stringNum, fret) {
     const rootIndex = STRING_ROOTS[stringNum];
     if (rootIndex === undefined) return null;
-    const noteIndex = (rootIndex + fret) % 12;
-    return NOTES[noteIndex];
+    return NOTES[(rootIndex + fret) % 12];
 }
+
+// Core formula: compute fret offset for a note on a given string,
+// normalized to a playable range (handles octave wrapping automatically)
+function fretOffset(rootString, noteString, interval) {
+    let offset = STRING_BASE[rootString] - STRING_BASE[noteString] + interval;
+    while (offset < -4) offset += 12;
+    while (offset > 9) offset -= 12;
+    return offset;
+}
+
+// Assign fingers [1,2,3] sorted by fret ascending (ties: lower string gets higher finger)
+function assignTriadFingers(positions) {
+    const sorted = positions.slice().sort((a, b) => {
+        if (a.fret !== b.fret) return a.fret - b.fret;
+        return b.string - a.string; // lower pitch (higher string#) gets lower finger
+    });
+    sorted.forEach((p, i) => { p.finger = i + 1; }); // fingers 1, 2, 3
+    return positions;
+}
+
+// Assign tetrad fingers: root=0 (index), others [1,2,3] by fret ascending
+function assignTetradFingers(positions) {
+    const rootPos = positions.find(p => p.isRoot);
+    const others = positions.filter(p => !p.isRoot)
+        .sort((a, b) => {
+            if (a.fret !== b.fret) return a.fret - b.fret;
+            return b.string - a.string;
+        });
+    rootPos.finger = 0;
+    others.forEach((p, i) => { p.finger = i + 1; });
+    return positions;
+}
+
+// =============================================
+// TRIAD DEFINITIONS
+// =============================================
+
+const TRIAD_QUALITIES = {
+    Major: { intervals: [0, 4, 7],  tag: 'Major', suffix: '' },
+    m:     { intervals: [0, 3, 7],  tag: 'm',     suffix: 'm' },
+    dim:   { intervals: [0, 3, 6],  tag: 'dim',   suffix: 'dim' },
+    aug:   { intervals: [0, 4, 8],  tag: 'aug',   suffix: 'aug' },
+    sus4:  { intervals: [0, 5, 7],  tag: 'sus4',  suffix: 'sus4' },
+    sus2:  { intervals: [0, 2, 7],  tag: 'sus2',  suffix: 'sus2' },
+};
+
+const TRIAD_STRING_SETS = [
+    { strings: [3, 2, 1], tag: 'Set123', label: 'Set 123' },
+    { strings: [5, 4, 3], tag: 'Set345', label: 'Set 345' },
+    { strings: [6, 5, 4], tag: 'Set456', label: 'Set 456' },
+];
+
+const TRIAD_INVERSIONS = [
+    { rotation: 0, tag: 'Root-Pos', label: 'Root' },
+    { rotation: 1, tag: '1st-Inv',  label: 'Inv 1' },
+    { rotation: 2, tag: '2nd-Inv',  label: 'Inv 2' },
+];
+
+// =============================================
+// TETRAD DEFINITIONS
+// =============================================
+
+const TETRAD_QUALITIES = {
+    Maj7:    { noteSlots: { R: 0, '3': 4, '5': 7, '7': 11 }, tag: 'Maj7',  suffix: 'Maj7' },
+    '7th':   { noteSlots: { R: 0, '3': 4, '5': 7, '7': 10 }, tag: '7th',   suffix: '7' },
+    m7:      { noteSlots: { R: 0, '3': 3, '5': 7, '7': 10 }, tag: 'm7',    suffix: 'm7' },
+    m7b5:    { noteSlots: { R: 0, '3': 3, '5': 6, '7': 10 }, tag: 'm7b5',  suffix: 'm7b5' },
+    dim7:    { noteSlots: { R: 0, '3': 3, '5': 6, '7': 9 },  tag: 'dim7',  suffix: 'dim7' },
+    mMaj7:   { noteSlots: { R: 0, '3': 3, '5': 7, '7': 11 }, tag: 'mMaj7', suffix: 'mMaj7' },
+    '6':     { noteSlots: { R: 0, '3': 4, '5': 7, '7': 9 },  tag: '6',     suffix: '6' },
+    m6:      { noteSlots: { R: 0, '3': 3, '5': 7, '7': 9 },  tag: 'm6',    suffix: 'm6' },
+};
+
+const TETRAD_VOICINGS = [
+    { strings: [4, 3, 2, 1], order: ['R', '5', '7', '3'], tag: 'Root-Pos' },
+    { strings: [6, 4, 3, 2], order: ['R', '7', '3', '5'], tag: 'Drop3' },
+    { strings: [5, 4, 3, 2], order: ['R', '5', '7', '3'], tag: 'Drop2' },
+];
+
+// =============================================
+// GENERATORS
+// =============================================
 
 export function generateBarreChords() {
     const library = {};
-    
-    // Shapes defined in shapes.js
-    const shapes = [
-        'E-Shape Major', 'A-Shape Major', 
-        'E-Shape Minor', 'A-Shape Minor',
-        'E-Shape 7th', 'A-Shape 7th'
-    ];
+    const shapes = Object.keys(SHAPES).filter(key => SHAPES[key].tags.includes('Barre'));
 
     shapes.forEach(shapeKey => {
         const shape = SHAPES[shapeKey];
-        if(!shape) return;
+        if (!shape) return;
 
-        // Generate for frets 1 to 12
-        for(let f=1; f<=12; f++) {
+        for (let f = 1; f <= 12; f++) {
             const rootName = getNoteName(shape.rootString, f);
-            
-            // Determine suffix
+
             let suffix = '';
-            if (shape.tags.includes('Minor')) suffix = 'm';
+            if (shape.tags.includes('m7')) suffix = 'm7';
+            else if (shape.tags.includes('Maj7')) suffix = 'Maj7';
+            else if (shape.tags.includes('Minor')) suffix = 'm';
             else if (shape.tags.includes('7th')) suffix = '7';
-            
-            // Name: "F (Barre 1fr)" or "Bm (Barre 2fr)" or "E7 (Barre Xfr)"
-            const chordName = `${rootName}${suffix} (Barre ${f}fr)`; 
-            
+
+            const chordName = `${rootName}${suffix} (Barre ${f}fr)`;
             const positions = shape.offsets.map(p => ({
-                string: p.string, 
-                fret: f + p.fret, 
+                string: p.string,
+                fret: f + p.fret,
                 finger: p.finger
             }));
 
-            library[chordName] = {
-                positions,
-                tags: [...shape.tags]
-            };
+            library[chordName] = { positions, tags: [...shape.tags] };
         }
     });
 
@@ -63,110 +129,104 @@ export function generateBarreChords() {
 
 export function generateTriadChords() {
     const library = {};
-    const shapes = [
-        'Triad Major (Root Pos)', 'Triad Major (1st Inv)', 'Triad Major (2nd Inv)',
-        'Triad Major (Set 3-4-5 Root)', 'Triad Major (Set 3-4-5 Inv 1)', 'Triad Major (Set 3-4-5 Inv 2)',
-        'Triad Major (Set 4-5-6 Root)', 'Triad Major (Set 4-5-6 Inv 1)', 'Triad Major (Set 4-5-6 Inv 2)'
-    ];
 
-    shapes.forEach(shapeKey => {
-        const shape = SHAPES[shapeKey];
-        if(!shape) return;
+    for (const [, quality] of Object.entries(TRIAD_QUALITIES)) {
+        for (const set of TRIAD_STRING_SETS) {
+            for (const inv of TRIAD_INVERSIONS) {
+                // Rotate intervals: e.g. [0,4,7] with rotation=1 → [4,7,0]
+                const rotated = [];
+                for (let i = 0; i < 3; i++) {
+                    rotated.push(quality.intervals[(i + inv.rotation) % 3]);
+                }
 
-        for(let f=1; f<=12; f++) {
-            const rootName = getNoteName(shape.rootString, f);
-            
-            // Generate variant name
-            let variant = "";
-            let set = "";
-            
-            if(shapeKey.includes("Set 3-4-5")) set = " (Set 345)";
-            else if(shapeKey.includes("Set 4-5-6")) set = " (Set 456)";
-            else set = " (Set 123)"; // Default first ones
+                // Find which string index has the root (interval 0)
+                const rootIdx = rotated.indexOf(0);
+                const rootString = set.strings[rootIdx];
 
-            if(shapeKey.includes("Root Pos") || shapeKey.includes("Root")) variant = `(Triad Root${set})`;
-            else if(shapeKey.includes("1st Inv") || shapeKey.includes("Inv 1")) variant = `(Triad Inv 1${set})`;
-            else if(shapeKey.includes("2nd Inv") || shapeKey.includes("Inv 2")) variant = `(Triad Inv 2${set})`;
+                // Compute offsets for each note
+                const offsets = set.strings.map((str, i) => {
+                    let interval = rotated[i];
+                    // Notes on lower-pitched strings than root need octave adjustment
+                    if (str > rootString) interval -= 12;
+                    return { string: str, fret: fretOffset(rootString, str, interval) };
+                });
 
-            const chordName = `${rootName} ${variant}`;
+                // Generate across all 12 frets
+                for (let f = 1; f <= 12; f++) {
+                    const rootName = getNoteName(rootString, f);
 
-            let valid = true;
-            const positions = shape.offsets.map(p => {
-                const absFret = f + p.fret;
-                if(absFret < 0) valid = false; 
-                return {
-                    string: p.string,
-                    fret: absFret,
-                    finger: p.finger
-                };
-            });
+                    let valid = true;
+                    const positions = offsets.map(o => {
+                        const absFret = f + o.fret;
+                        if (absFret < 0) valid = false;
+                        return { string: o.string, fret: absFret };
+                    });
 
-            if(valid) {
-                 library[chordName] = {
-                    positions,
-                    tags: [...shape.tags] // 'Triad', 'Major'
-                };
+                    if (!valid) continue;
+
+                    assignTriadFingers(positions);
+
+                    const chordName = `${rootName}${quality.suffix} (Triad ${inv.label} (${set.label}))`;
+                    library[chordName] = {
+                        positions,
+                        tags: ['Triad', quality.tag, inv.tag, set.tag]
+                    };
+                }
             }
         }
-    });
+    }
+
     return library;
 }
 
 export function generateTetradChords() {
     const library = {};
-    const shapes = [
-        'Tetrad Maj7 (Root on 4)', 
-        'Tetrad 7 (Root on 4)', 
-        'Tetrad m7 (Root on 4)', 
-        'Tetrad m7b5 (Root on 4)',
-        'Tetrad dim7 (Root on 4)',
-        'Tetrad Maj7 (Root on 6)', 'Tetrad m7 (Root on 6)', 'Tetrad 7 (Root on 6)',
-        'Tetrad Maj7 (Root on 5)', 'Tetrad m7 (Root on 5)', 'Tetrad 7 (Root on 5)'
-    ];
 
-    shapes.forEach(shapeKey => {
-        const shape = SHAPES[shapeKey];
-        if(!shape) return;
+    for (const [, quality] of Object.entries(TETRAD_QUALITIES)) {
+        for (const voicing of TETRAD_VOICINGS) {
+            // Map note slots to intervals for this voicing's string order
+            const intervals = voicing.order.map(slot => quality.noteSlots[slot]);
 
-        for(let f=1; f<=12; f++) {
-            const rootName = getNoteName(shape.rootString, f);
-            
-            // Name: "C Maj7 (Tetrad Root)"
-            let type = "Maj";
-            if(shapeKey.includes("Maj7")) type = "Maj7";
-            else if(shapeKey.includes("m7b5")) type = "m7b5";
-            else if(shapeKey.includes("dim7")) type = "dim7";
-            else if(shapeKey.includes("m7")) type = "m7"; 
-            else if(shapeKey.includes(" 7 ")) type = "7";
+            // Root is always on the first (lowest) string in each voicing
+            const rootString = voicing.strings[0];
 
-            let voicing = "";
-            if(shapeKey.includes("Root on 6")) voicing = " R6";
-            else if(shapeKey.includes("Root on 5")) voicing = " R5";
-            else if(shapeKey.includes("Root on 4")) voicing = " R4";
-
-            // Format: "D Maj7 (Tetrad R6)"
-            const chordName = `${rootName}${type} (Tetrad${voicing})`;
-
-            let valid = true;
-            const positions = shape.offsets.map(p => {
-                const absFret = f + p.fret;
-                if(absFret < 0) valid = false;
+            // Compute offsets
+            const offsets = voicing.strings.map((str, i) => {
+                let interval = intervals[i];
+                // Notes on lower-pitched strings than root need octave adjustment
+                if (str > rootString) interval -= 12;
                 return {
-                    string: p.string,
-                    fret: absFret,
-                    finger: p.finger < 0 ? 0 : p.finger
+                    string: str,
+                    fret: fretOffset(rootString, str, interval),
+                    isRoot: voicing.order[i] === 'R'
                 };
             });
 
-            if(valid) {
-                 library[chordName] = {
+            for (let f = 1; f <= 12; f++) {
+                const rootName = getNoteName(rootString, f);
+
+                let valid = true;
+                const positions = offsets.map(o => {
+                    const absFret = f + o.fret;
+                    if (absFret < 0) valid = false;
+                    return { string: o.string, fret: absFret, isRoot: o.isRoot };
+                });
+
+                if (!valid) continue;
+
+                assignTetradFingers(positions);
+
+                // Clean up: remove isRoot helper flag
+                positions.forEach(p => { delete p.isRoot; });
+
+                const chordName = `${rootName}${quality.suffix} (Tetrad R${rootString})`;
+                library[chordName] = {
                     positions,
-                    tags: [...shape.tags] 
+                    tags: ['Tetrad', quality.tag, voicing.tag]
                 };
             }
         }
-    });
+    }
 
     return library;
 }
-

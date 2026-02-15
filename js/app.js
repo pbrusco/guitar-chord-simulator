@@ -43,7 +43,13 @@ const TranslationManager = {
             "Root-Pos": "Root Pos", "1st-Inv": "1st Inv", "2nd-Inv": "2nd Inv",
             "beginner": "🎓 Beginner",
             // Chord Types
-            "m": "m", "7": "7"
+            "m": "m", "7": "7", "Maj7": "Maj7", "mMaj7": "mMaj7",
+            "dim": "dim", "dim7": "dim7", "aug": "aug",
+            "m7": "m7", "m7b5": "m7b5", "6": "6", "m6": "m6",
+            "sus2": "sus2", "sus4": "sus4",
+            // Barre shape tags
+            "Em7-Shape": "Em7-Shape", "Am7-Shape": "Am7-Shape",
+            "EMaj7-Shape": "EMaj7-Shape", "AMaj7-Shape": "AMaj7-Shape"
         },
         es: {
             title: "🎸 Simulador de Mano",
@@ -71,11 +77,16 @@ const TranslationManager = {
             "E-Shape": "Forma-Mi", "A-Shape": "Forma-La", "Em-Shape": "Forma-Mim", "Am-Shape": "Forma-Lam", 
             "Triad": "Tríada", "Tetrad": "Cuatríada",
             "Root-Pos": "Pos-Raíz", "1st-Inv": "1ª Inv", "2nd-Inv": "2ª Inv",
-            "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "maj7": "Maj7", "m7": "m7",
+            "7th": "7ª", "dim": "Disminuido", "aug": "Aumentado", "Maj7": "Maj7", "m7": "m7",
             "beginner": "🎓 Principiante",
             "advanced": "🚀 Avanzado",
             // Chord Types
-            "m": "m", "7": "7"
+            "m": "m", "7": "7", "mMaj7": "mMaj7",
+            "dim7": "dim7", "m7b5": "m7b5", "6": "6", "m6": "m6",
+            "sus2": "sus2", "sus4": "sus4",
+            // Barre shape tags
+            "Em7-Shape": "Forma-Mim7", "Am7-Shape": "Forma-Lam7",
+            "EMaj7-Shape": "Forma-MiMaj7", "AMaj7-Shape": "Forma-LaMaj7"
         }
     },
 
@@ -1500,10 +1511,9 @@ const uiManager = {
         if(types.has(validType)) exists = true;
         
         if(!exists) {
-            // Priority: Major -> Minor -> m -> First available
+            // Priority: Major -> m -> First available
             if(types.has('Major')) validType = 'Major';
             else if(types.has('m')) validType = 'm';
-            else if(types.has('Minor')) validType = 'Minor';
             else if(types.size > 0) validType = Array.from(types)[0];
         }
         if (validType) this.selectedSelectorType = validType;
@@ -1511,7 +1521,7 @@ const uiManager = {
         const typeContainer = document.getElementById('type-selector');
         if(typeContainer) {
             typeContainer.innerHTML = '';
-            const typeOrder = ['Major', 'Minor', 'm', '7', 'm7', 'maj7', 'dim', 'aug'];
+            const typeOrder = ['Major', 'm', '7', 'm7', 'Maj7', 'mMaj7', 'dim', 'dim7', 'aug', 'm7b5', '6', 'm6', 'sus2', 'sus4'];
             const sortedTypes = Array.from(types).sort((a,b) => {
                 const idxA = typeOrder.indexOf(a);
                 const idxB = typeOrder.indexOf(b);
